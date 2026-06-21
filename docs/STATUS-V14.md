@@ -37,8 +37,9 @@ Extra config arguments: vazio ou --no-fast-models
 
 ## Instalador alternativo para debug
 
+No HiveOS normalmente você já está como `root`, então não use `sudo -i` dentro do bloco. O `sudo -i` abre outro shell interativo e pode impedir que as próximas linhas sejam executadas.
+
 ```bash
-sudo -i
 wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/install-v14-flat-raw.sh
 bash /tmp/install-keryx-v14.sh
 ```
