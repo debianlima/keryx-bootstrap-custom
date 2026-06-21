@@ -6,13 +6,12 @@ MANIFEST="/hive/miners/custom/keryx-miner/h-manifest.conf"
 . "$MANIFEST" 2>/dev/null || true
 
 LOG="${CUSTOM_LOG_BASENAME:-/var/log/miner/keryx-miner}.log"
-VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v7}"
+VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v11}"
 ALGO="blake3-alph"
 now="$(date +%s)"
 khs=0
-stats="null"
-diffTime=999999
 stats_raw=""
+diffTime=999999
 
 num_to_khs() {
   awk -v v="$1" -v u="$2" 'BEGIN { gsub(/,/, ".", v); mult=1; if (u ~ /[Tt][Hh]ash|[Tt][Hh]\/s/) mult=1000000000; else if (u ~ /[Gg][Hh]ash|[Gg][Hh]\/s/) mult=1000000; else if (u ~ /[Mm][Hh]ash|[Mm][Hh]\/s/) mult=1000; else if (u ~ /[Kk][Hh]ash|[Kk][Hh]\/s/) mult=1; else if (u ~ /^[Hh]ash|^[Hh]\/s/) mult=0.001; printf "%d", v * mult; }'
@@ -37,16 +36,14 @@ if [ -n "$stats_raw" ]; then
 fi
 
 if [ "$khs" = "0" ] && [ -f "$LOG" ]; then
-  alive_raw="$(grep -Ei 'KERYX-BOOTSTRAP|KERYX-HIVEOS|download|downloading|prefetch|model|loading|inference|starting|iniciando|baixando|bootstrap|fast-models|huggingface' "$LOG" | tail -n 1)"
+  alive_raw="$(grep -Ei 'KERYX-BOOTSTRAP|KERYX-HIVEOS|download|downloading|prefetch|model|loading|inference|starting|iniciando|baixando|bootstrap|fast-models|huggingface|retry|DIAGNOSTICO' "$LOG" | tail -n 1)"
   if [ -n "$alive_raw" ]; then
     alive_diff="$(line_diff "$alive_raw")"
     if [ "$alive_diff" -lt 900 ]; then khs=1; diffTime="$alive_diff"; stats_raw="$alive_raw"; fi
   fi
 fi
 
-hs_array="[$khs]"
 temp_json="[]"; fan_json="[]"; bus_json="[]"
-
 if command -v jq >/dev/null 2>&1 && [ -n "${GPU_STATS_JSON:-}" ] && [ -f "$GPU_STATS_JSON" ]; then
   temp_json="$(jq -c '[.[]?.temp // 0]' "$GPU_STATS_JSON" 2>/dev/null || echo '[]')"
   fan_json="$(jq -c '[.[]?.fan // 0]' "$GPU_STATS_JSON" 2>/dev/null || echo '[]')"
@@ -54,13 +51,17 @@ if command -v jq >/dev/null 2>&1 && [ -n "${GPU_STATS_JSON:-}" ] && [ -f "$GPU_S
 fi
 
 if command -v jq >/dev/null 2>&1; then
-  stats="$(jq -nc --argjson hs "$hs_array" --arg hs_units "khs" --arg algo "$ALGO" --arg ver "$VERSION" --argjson bus_numbers "$bus_json" --argjson temp "$temp_json" --argjson fan "$fan_json" '{hs:$hs, hs_units:$hs_units, algo:$algo, ver:$ver, bus_numbers:$bus_numbers, temp:$temp, fan:$fan}')"
+  stats="$(jq -nc --argjson hs "[$khs]" --arg hs_units "khs" --arg algo "$ALGO" --arg ver "$VERSION" --argjson bus_numbers "$bus_json" --argjson temp "$temp_json" --argjson fan "$fan_json" '{hs:$hs, hs_units:$hs_units, algo:$algo, ver:$ver, bus_numbers:$bus_numbers, temp:$temp, fan:$fan}')"
 else
-  stats="{\"hs\":$hs_array,\"hs_units\":\"khs\",\"algo\":\"$ALGO\",\"ver\":\"$VERSION\"}"
+  stats="{\"hs\":[$khs],\"hs_units\":\"khs\",\"algo\":\"$ALGO\",\"ver\":\"$VERSION\"}"
 fi
 
-echo "Log file : $LOG"
-echo "Time since last relevant log entry : $diffTime"
-echo "Raw stats : $stats_raw"
-echo "KHS : $khs"
-echo "Output : $stats"
+# HiveOS inclui este arquivo e espera as variáveis khs e stats definidas.
+# Se alguém executar diretamente, mostramos uma saída de diagnóstico.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  echo "Log file : $LOG"
+  echo "Time since last relevant log entry : $diffTime"
+  echo "Raw stats : $stats_raw"
+  echo "KHS : $khs"
+  echo "Output : $stats"
+fi
