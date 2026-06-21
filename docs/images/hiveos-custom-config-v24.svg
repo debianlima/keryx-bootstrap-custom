@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="860" viewBox="0 0 920 860">
+  <rect width="920" height="860" fill="#3f4852"/>
+  <rect x="28" y="24" width="864" height="812" rx="8" fill="#444e59"/>
+  <text x="48" y="62" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">Custom configuration</text>
+  <text x="50" y="112" font-family="Arial, sans-serif" font-size="14" fill="#ffb000" font-weight="700">EXPERT SECTION</text>
+  <text x="50" y="142" font-family="Arial, sans-serif" font-size="15" fill="#d2d8df">You can use ready made miner package or create your own.</text>
+
+  <g font-family="Arial, sans-serif">
+    <text x="52" y="196" font-size="16" fill="#97a3ad" font-weight="700">Miner name</text>
+    <rect x="48" y="208" width="824" height="70" rx="2" fill="#242b33"/>
+    <text x="64" y="250" font-size="18" fill="#e8edf2">keryx-bootstrap-custom-hiveos-v24-no-hconfig</text>
+
+    <text x="52" y="318" font-size="16" fill="#97a3ad" font-weight="700">Installation URL</text>
+    <rect x="48" y="330" width="824" height="70" rx="2" fill="#242b33"/>
+    <text x="64" y="372" font-size="16" fill="#e8edf2">https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v24-no-hconfig-defaults.tar.gz</text>
+
+    <text x="52" y="440" font-size="16" fill="#97a3ad" font-weight="700">Hash algorithm</text>
+    <rect x="48" y="452" width="824" height="70" rx="2" fill="#242b33"/>
+    <text x="64" y="494" font-size="18" fill="#e8edf2">blake3-alph</text>
+
+    <text x="52" y="562" font-size="16" fill="#97a3ad" font-weight="700">Wallet and worker template</text>
+    <rect x="48" y="574" width="824" height="70" rx="2" fill="#242b33"/>
+    <text x="64" y="616" font-size="18" fill="#e8edf2">%WAL%</text>
+
+    <text x="52" y="684" font-size="16" fill="#97a3ad" font-weight="700">Pool URL</text>
+    <rect x="48" y="696" width="824" height="70" rx="2" fill="#242b33"/>
+    <text x="64" y="738" font-size="18" fill="#e8edf2">stratum+tcp://krx.baikalmine.com:9020</text>
+
+    <text x="52" y="806" font-size="16" fill="#97a3ad" font-weight="700">Extra config arguments</text>
+    <rect x="48" y="818" width="824" height="34" rx="2" fill="#242b33"/>
+    <text x="64" y="841" font-size="15" fill="#e8edf2">--light</text>
+  </g>
+</svg>
