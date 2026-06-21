@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ ! -x "$DIR/keryx-miner.bin" ]; then
-  "$DIR/keryx-bootstrap.sh"
-fi
-exec "$DIR/keryx-miner.bin" "$@"
+
+# No HiveOS, dependendo da forma como o Custom Miner é chamado,
+# o sistema pode executar CUSTOM_MINERBIN diretamente em vez de h-run.
+# Por isso este wrapper sempre redireciona para h-run.sh, que é quem
+# gera config.ini, faz bootstrap e inicia keryx-miner.bin corretamente.
+exec "$DIR/h-run.sh" "$@"
