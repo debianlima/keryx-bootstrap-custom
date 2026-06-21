@@ -4,55 +4,48 @@ Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
 
 ## Status atual
 
-Versão atual: **v22-docker-kernel-fallback**.
+Versao atual: v23-old-kernel-docker-notice.
 
-Mudanças principais:
+Mudancas principais:
 
-1. `h-run.sh` agora detecta kernel inferior a `6.6.0-hiveos #60`. Quando detectar kernel antigo, ele tenta rodar o minerador dentro de container Ubuntu 22.04 usando Docker, mantendo a execução dentro da screen padrão do HiveOS.
+1. Kernel inferior a 6.6 agora ativa o modo Docker. Kernel 6.6 ou superior roda nativo.
 
-2. O modo Docker usa a mesma pasta `/hive/miners/custom` montada em `/miners`, então o log continua saindo em `/var/log/miner/keryx-miner.log` e o `h-stats.sh` continua enviando dados para a API de monitoramento do HiveOS.
+2. Quando detectar kernel antigo, o script tenta enviar uma mensagem ao usuario avisando para atualizar o HiveOS/kernel e informando que o Keryx vai rodar em container Ubuntu 22.04.
 
-3. `h-stats.sh` foi alinhado ao formato padrão do HiveOS: lê `Current hashrate is`, lê `Device #N`, converte para `khs` e monta `hs` por GPU ativa.
+3. Antes do modo Docker, o script tenta instalar as dependencias base no host:
+
+```bash
+apt-get update
+apt-get install -y wget ca-certificates
+```
+
+4. Se Docker nao existir, ele tenta instalar docker.io. A imagem local do container tambem instala wget e ca-certificates no Ubuntu 22.04.
+
+5. O container roda na mesma screen padrao do HiveOS, usa a pasta /hive/miners/custom montada em /miners, grava no mesmo log e o h-stats.sh continua alimentando a API do HiveOS.
 
 ## Release
 
-Página visual:
+URL direta esperada do asset v23:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
-```
-
-URL direta esperada do asset v22:
-
-```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v22-docker-kernel-fallback.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v23-old-kernel-docker-notice.tar.gz
 ```
 
 ## Flight Sheet
 
 ```text
 Miner: Custom
-Miner name: keryx-bootstrap-custom-hiveos-v22
-Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v22-docker-kernel-fallback.tar.gz
+Miner name: keryx-bootstrap-custom-hiveos-v23
+Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v23-old-kernel-docker-notice.tar.gz
 Hash algorithm: blake3-alph
 Pool URL: stratum+tcp://krx.baikalmine.com:9020
 Pass: vazio
 Extra config arguments: vazio ou --no-fast-models
 ```
 
-Coloque sua wallet no campo **Wallet and worker template** do HiveOS.
+Coloque sua wallet no campo Wallet and worker template do HiveOS.
 
-## Observação sobre Docker
-
-O fallback Docker precisa que o Docker consiga usar GPU com `--gpus all`. Se o rig não tiver runtime NVIDIA para Docker, o log vai mostrar o erro e o minerador vai tentar de novo no loop padrão.
-
-Para forçar Docker mesmo em kernel novo, coloque no ambiente:
-
-```bash
-export KERYX_FORCE_DOCKER=1
-```
-
-## Hotfix rápido no rig já instalado
+## Hotfix rapido no rig ja instalado
 
 ```bash
 miner stop 2>/dev/null || true
@@ -66,10 +59,10 @@ chmod 755 /hive/miners/custom/h-run.sh /hive/miners/custom/h-stats.sh
 miner start
 ```
 
-## Conferência
+## Conferencia
 
 ```bash
 cat /hive/miners/custom/config.ini
-grep -Ei "Kernel|Docker|Current hashrate|Device #|config:" /var/log/miner/keryx-miner.log | tail -80
+grep -Ei "AVISO|Kernel|Docker|apt-get|Current hashrate|Device #|config:" /var/log/miner/keryx-miner.log | tail -120
 /hive/miners/custom/h-stats.sh
 ```
