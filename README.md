@@ -1,121 +1,64 @@
 # keryx-bootstrap-custom
 
-sudo -i
+Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
 
-cat > /root/install-keryx-v5-manual.sh <<'EOF'
-#!/usr/bin/env bash
-set -Eeuo pipefail
+## O que esta versão faz
 
-URL="https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-miner-v032opoi_hiveosv5.tar.gz"
+- Mantém a pasta esperada pelo HiveOS como `keryx-miner`.
+- Gera `config.ini` a partir do Flight Sheet: `CUSTOM_URL` vira `-s` e `CUSTOM_TEMPLATE` vira `--mining-address`.
+- Usa `--light` por padrão quando o campo User Config está vazio.
+- Baixa o pacote real do Keryx na primeira execução, valida o `.tar.gz`, extrai em área temporária e preserva os scripts HiveOS corrigidos.
+- Renomeia o binário ELF `keryx-miner` para `keryx-miner.bin` e mantém `keryx-miner` como wrapper.
+- Mantém o HiveOS vivo durante bootstrap/download/model/prefetch retornando estatística provisória no `h-stats.sh`.
 
-BASE="/hive/miners/custom/keryx-miner"
-CUSTOM_DIR="/hive/miners/custom"
-TMP="/tmp/keryx-miner-v5.tar.gz"
+## URL do pacote real usado pelo bootstrap
 
-echo "============================================================"
-echo "Instalador manual Keryx HiveOS v5"
-echo "URL: $URL"
-echo "============================================================"
+Por padrão, o bootstrap baixa:
 
-echo
-echo "[1/9] Parando minerador..."
-miner stop 2>/dev/null || true
-pkill -f keryx-miner 2>/dev/null || true
-sleep 3
+```bash
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-miner-v032opoi_hiveosv5.tar.gz
+```
 
-echo
-echo "[2/9] Limpando instalações antigas do Keryx..."
-cd "$CUSTOM_DIR"
+Para trocar o pacote real sem alterar script, defina no ambiente:
 
-rm -rf "$BASE"
-rm -rf /hive/miners/custom/keryx-miner-v0.3.2-OPoI
-rm -rf /hive/miners/custom/keryx-bootstrap-custom-bootstrap
-rm -rf /hive/miners/custom/bootstrap
-rm -f "$TMP"
+```bash
+export KERYX_PACKAGE_URL="https://servidor/arquivo-keryx.tar.gz"
+export KERYX_PACKAGE_SHA256="sha256-opcional"
+```
 
-echo
-echo "[3/9] Baixando pacote v5..."
-if command -v curl >/dev/null 2>&1; then
-  curl -L --fail --retry 5 --retry-delay 5 --connect-timeout 30 -o "$TMP" "$URL"
-else
-  wget --tries=5 --timeout=30 -O "$TMP" "$URL"
-fi
+## Como testar no HiveOS depois de instalado
 
-echo
-echo "[4/9] Conferindo pacote..."
-gzip -t "$TMP"
+```bash
+cd /hive/miners/custom/keryx-miner
+bash -n h-run.sh h-config.sh h-stats.sh keryx-bootstrap.sh
+./h-config.sh
+cat config.ini
+./h-run.sh
+```
 
-echo
-echo "Primeiros arquivos dentro do pacote:"
-tar -tzf "$TMP" | head -30
+Logs:
 
-if ! tar -tzf "$TMP" | grep -q '^keryx-miner/h-run.sh$'; then
-  echo
-  echo "ERRO: pacote não está no formato esperado do HiveOS."
-  echo "Esperado: keryx-miner/h-run.sh"
-  exit 1
-fi
+```bash
+tail -f /var/log/miner/keryx-miner.log
+```
 
-echo
-echo "[5/9] Extraindo em $CUSTOM_DIR..."
-tar -xzf "$TMP" -C "$CUSTOM_DIR"
+## Observação importante
 
-if [ ! -d "$BASE" ]; then
-  echo "ERRO: pasta $BASE não foi criada."
-  exit 1
-fi
+Para usar direto no campo **Install URL / Custom URL** do HiveOS, o arquivo precisa ser um `.tar.gz` com a pasta `keryx-miner/` no topo. O pacote gerado para esta versão se chama:
 
-echo
-echo "[6/9] Ajustando permissões..."
-chmod -R 755 "$BASE"
-chmod +x "$BASE"/h-run.sh "$BASE"/h-run "$BASE"/h-config.sh "$BASE"/h-stats.sh "$BASE"/keryx-bootstrap.sh "$BASE"/keryx-miner 2>/dev/null || true
+```bash
+keryx-bootstrap-custom-hiveos-v6.tar.gz
+```
 
-mkdir -p "$BASE/models" "$BASE/.keryx-cache" /var/log/miner
-chmod -R 755 "$BASE/models" "$BASE/.keryx-cache"
+Estrutura esperada:
 
-echo
-echo "[7/9] Testando sintaxe dos scripts..."
-cd "$BASE"
-
-bash -n h-run.sh
-bash -n h-stats.sh
-bash -n h-config.sh
-bash -n keryx-bootstrap.sh
-bash -n keryx-miner
-
-echo
-echo "[8/9] Gerando config.ini..."
-./h-config.sh || true
-
-echo
-echo "Config atual:"
-cat config.ini 2>/dev/null || echo "config.ini não encontrado"
-
-echo
-echo "[9/9] Instalação concluída."
-echo
-echo "Pasta instalada:"
-ls -la "$BASE"
-
-echo
-echo "Modelos/cache:"
-ls -la "$BASE/models" "$BASE/.keryx-cache" 2>/dev/null || true
-
-echo
-echo "Para testar direto no terminal:"
-echo "cd $BASE && ./h-run.sh"
-echo
-echo "Para iniciar pelo HiveOS, primeiro confirme que o Flight Sheet está com:"
-echo "Miner name: keryx-miner"
-echo "Install URL: $URL"
-echo
-echo "Depois rode:"
-echo "miner start"
-echo
-echo "Log:"
-echo "tail -f /var/log/miner/keryx-miner.log"
-EOF
-
-chmod 755 /root/install-keryx-v5-manual.sh
-
-/root/install-keryx-v5-manual.sh
+```text
+keryx-miner/
+keryx-miner/h-manifest.conf
+keryx-miner/h-config.sh
+keryx-miner/h-run.sh
+keryx-miner/h-run
+keryx-miner/h-stats.sh
+keryx-miner/keryx-bootstrap.sh
+keryx-miner/keryx-miner
+```
