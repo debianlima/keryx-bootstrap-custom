@@ -4,20 +4,15 @@ Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
 
 ## Status atual
 
-Versão atual: **v19-flightsheet-ghs**.
+Versão atual: **v22-docker-kernel-fallback**.
 
-A v19 corrige dois pontos:
+Mudanças principais:
 
-1. `h-run.sh` e `h-config.sh` leem diretamente o Flight Sheet local do HiveOS:
+1. `h-run.sh` agora detecta kernel inferior a `6.6.0-hiveos #60`. Quando detectar kernel antigo, ele tenta rodar o minerador dentro de container Ubuntu 22.04 usando Docker, mantendo a execução dentro da screen padrão do HiveOS.
 
-```text
-/hive-config/rig.conf
-/hive-config/wallet.conf
-```
+2. O modo Docker usa a mesma pasta `/hive/miners/custom` montada em `/miners`, então o log continua saindo em `/var/log/miner/keryx-miner.log` e o `h-stats.sh` continua enviando dados para a API de monitoramento do HiveOS.
 
-Com isso, mesmo quando o wrapper é chamado fora do `miner-run`, ele lê `CUSTOM_URL`, `CUSTOM_TEMPLATE`, `CUSTOM_USER_CONFIG`, `CUSTOM_ALGO`, `CUSTOM_PASS`, `CUSTOM_TLS` e `CUSTOM_INSTALL_URL` direto do HiveOS.
-
-2. `h-stats.sh` agora tenta reportar o hashrate real em **GH/s** quando o log do minerador mostrar unidades como `GH/s`, `GHash/s`, `MH/s` ou `TH/s`. O fallback de `1 kH` fica apenas como sinal de atividade durante bootstrap/download/prefetch.
+3. `h-stats.sh` foi alinhado ao formato padrão do HiveOS: lê `Current hashrate is`, lê `Device #N`, converte para `khs` e monta `hs` por GPU ativa.
 
 ## Release
 
@@ -27,24 +22,18 @@ Página visual:
 https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
 ```
 
-URL direta esperada do asset v19:
+URL direta esperada do asset v22:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v19-flightsheet-ghs.tar.gz
-```
-
-SHA256 do pacote v19:
-
-```text
-d217f59608367bf467c72f714772f94a4791530767fe56746bcf2a4644dfb423
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v22-docker-kernel-fallback.tar.gz
 ```
 
 ## Flight Sheet
 
 ```text
 Miner: Custom
-Miner name: keryx-bootstrap-custom-hiveos-v19
-Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v19-flightsheet-ghs.tar.gz
+Miner name: keryx-bootstrap-custom-hiveos-v22
+Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v22-docker-kernel-fallback.tar.gz
 Hash algorithm: blake3-alph
 Pool URL: stratum+tcp://krx.baikalmine.com:9020
 Pass: vazio
@@ -53,13 +42,14 @@ Extra config arguments: vazio ou --no-fast-models
 
 Coloque sua wallet no campo **Wallet and worker template** do HiveOS.
 
-## Patch de auto-instalação
+## Observação sobre Docker
 
-Use uma vez no rig quando o HiveOS não recriar `/hive/miners/custom` sozinho:
+O fallback Docker precisa que o Docker consiga usar GPU com `--gpus all`. Se o rig não tiver runtime NVIDIA para Docker, o log vai mostrar o erro e o minerador vai tentar de novo no loop padrão.
+
+Para forçar Docker mesmo em kernel novo, coloque no ambiente:
 
 ```bash
-wget -qO /tmp/patch-keryx-auto-install.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/patch-hiveos-miner-run-auto-install.sh
-bash /tmp/patch-keryx-auto-install.sh
+export KERYX_FORCE_DOCKER=1
 ```
 
 ## Hotfix rápido no rig já instalado
@@ -69,11 +59,9 @@ miner stop 2>/dev/null || true
 sleep 3
 screen -wipe || true
 
-wget -qO /hive/miners/custom/h-config.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-config.sh
 wget -qO /hive/miners/custom/h-run.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-run.sh
 wget -qO /hive/miners/custom/h-stats.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-stats.sh
-wget -qO /hive/miners/custom/h-manifest.conf https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-manifest.conf
-chmod 755 /hive/miners/custom/h-config.sh /hive/miners/custom/h-run.sh /hive/miners/custom/h-stats.sh /hive/miners/custom/h-manifest.conf
+chmod 755 /hive/miners/custom/h-run.sh /hive/miners/custom/h-stats.sh
 
 miner start
 ```
@@ -82,6 +70,6 @@ miner start
 
 ```bash
 cat /hive/miners/custom/config.ini
-grep -i "config:" /var/log/miner/keryx-miner.log | tail -5
+grep -Ei "Kernel|Docker|Current hashrate|Device #|config:" /var/log/miner/keryx-miner.log | tail -80
 /hive/miners/custom/h-stats.sh
 ```
