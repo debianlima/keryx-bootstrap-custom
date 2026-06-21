@@ -24,14 +24,13 @@ if command -v flock >/dev/null 2>&1; then
 fi
 
 write_wrapper() {
+  # Nunca deixar o pacote oficial sobrescrever o wrapper local com o binario real.
+  # O HiveOS pode chamar CUSTOM_MINERBIN diretamente em alguns fluxos; por isso
+  # keryx-miner precisa voltar para h-run.sh, que gera config.ini e chama o binario.
   cat > "$DIR/keryx-miner" <<'WRAP'
 #!/usr/bin/env bash
-set -Eeuo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ ! -x "$DIR/keryx-miner.bin" ]; then
-  "$DIR/keryx-bootstrap.sh"
-fi
-exec "$DIR/keryx-miner.bin" "$@"
+exec "$DIR/h-run.sh" "$@"
 WRAP
   chmod 755 "$DIR/keryx-miner"
 }
@@ -120,15 +119,18 @@ if [ -n "$PACKAGE_SHA256" ]; then
 fi
 
 log "identificando pacote"
-if file "$ARCHIVE" 2>/dev/null | grep -qi 'zip'; then
+if command -v file >/dev/null 2>&1 && file "$ARCHIVE" 2>/dev/null | grep -qi 'zip'; then
   unzip -l "$ARCHIVE" | head -40 || true
   unzip -q "$ARCHIVE" -d "$TMP_BASE/extract"
 elif gzip -t "$ARCHIVE" 2>/dev/null; then
   tar -tzf "$ARCHIVE" | head -40 || true
   tar -xzf "$ARCHIVE" -C "$TMP_BASE/extract"
+elif unzip -t "$ARCHIVE" >/dev/null 2>&1; then
+  unzip -l "$ARCHIVE" | head -40 || true
+  unzip -q "$ARCHIVE" -d "$TMP_BASE/extract"
 else
   log "ERRO: pacote baixado nao parece zip nem tar.gz valido"
-  file "$ARCHIVE" || true
+  command -v file >/dev/null 2>&1 && file "$ARCHIVE" || true
   head -40 "$ARCHIVE" || true
   exit 1
 fi
