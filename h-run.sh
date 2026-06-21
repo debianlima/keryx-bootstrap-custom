@@ -9,9 +9,6 @@ load_hiveos_flight_sheet() {
   [ -f /hive-config/wallet.conf ] && . /hive-config/wallet.conf 2>/dev/null || true
 }
 
-# Leitura direta do Flight Sheet antes do manifest. Assim, mesmo se o wrapper
-# for chamado fora do miner-run, CUSTOM_URL/CUSTOM_TEMPLATE/CUSTOM_USER_CONFIG
-# entram corretamente na config do executavel real.
 load_hiveos_flight_sheet
 
 [ -t 1 ] && [ -f colors ] && . colors || true
@@ -28,6 +25,7 @@ show_diag() {
   log "===== DIAGNOSTICO RAPIDO ====="
   log "PWD=$(pwd)"
   log "DIR=$DIR"
+  log "KERNEL=$(uname -r) $(uname -v)"
   log "CUSTOM_CONFIG_FILENAME=${CUSTOM_CONFIG_FILENAME:-}"
   log "CUSTOM_LOG_BASENAME=${CUSTOM_LOG_BASENAME:-}"
   log "CUSTOM_URL=${CUSTOM_URL:-}"
@@ -38,8 +36,8 @@ show_diag() {
   ls -la "$DIR"/h-run "$DIR"/h-run.sh "$DIR"/h-config.sh "$DIR"/h-stats.sh "$DIR"/keryx-bootstrap.sh "$DIR"/keryx-miner "$DIR"/keryx-miner.bin 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log" || true
   log "config.ini:"
   cat "$CUSTOM_CONFIG_FILENAME" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log" || true
-  log "Processos Keryx:"
-  pgrep -af 'keryx-miner|keryx-bootstrap|download-models' 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log" || true
+  log "Processos Keryx/Docker:"
+  pgrep -af 'keryx-miner|keryx-bootstrap|download-models|docker' 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log" || true
   log "Ultimas linhas do log:"
   tail -80 "$CUSTOM_LOG_BASENAME.log" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.diag.log" || true
   log "===== FIM DIAGNOSTICO ====="
@@ -125,10 +123,127 @@ prepare_config() {
   return 0
 }
 
+kernel_requires_docker() {
+  krel="$(uname -r 2>/dev/null || echo '')"
+  kver="$(uname -v 2>/dev/null || echo '')"
+
+  major="$(printf '%s\n' "$krel" | sed -E 's/^([0-9]+).*/\1/')"
+  minor="$(printf '%s\n' "$krel" | sed -E 's/^[0-9]+\.([0-9]+).*/\1/')"
+  patch="$(printf '%s\n' "$krel" | sed -E 's/^[0-9]+\.[0-9]+\.([0-9]+).*/\1/')"
+  build="$(printf '%s\n' "$kver" | grep -Eo '#[0-9]+' | head -n1 | tr -d '#')"
+
+  case "$major" in ''|*[!0-9]*) major=0 ;; esac
+  case "$minor" in ''|*[!0-9]*) minor=0 ;; esac
+  case "$patch" in ''|*[!0-9]*) patch=0 ;; esac
+  case "$build" in ''|*[!0-9]*) build=0 ;; esac
+
+  [ "$major" -lt 6 ] && return 0
+  [ "$major" -gt 6 ] && return 1
+  [ "$minor" -lt 6 ] && return 0
+  [ "$minor" -gt 6 ] && return 1
+  [ "$patch" -lt 0 ] && return 0
+  [ "$patch" -gt 0 ] && return 1
+  [ "$build" -lt 60 ] && return 0
+  return 1
+}
+
+ensure_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    log "Docker nao encontrado; tentando instalar docker.io"
+    if command -v apt-get >/dev/null 2>&1; then
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+      apt-get install -y docker.io 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    fi
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    log "ERRO: Docker nao esta instalado e nao foi possivel instalar automaticamente."
+    return 1
+  fi
+
+  systemctl start docker >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true
+
+  if ! docker info >/dev/null 2>&1; then
+    log "ERRO: Docker instalado, mas daemon nao respondeu."
+    return 1
+  fi
+
+  return 0
+}
+
+ensure_docker_image() {
+  image="keryx-hiveos-ubuntu22:22.04"
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log "Criando imagem Docker $image baseada no Ubuntu 22.04"
+  cat > "$DIR/tmp/Dockerfile.keryx" <<'DOCKERFILE'
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 libstdc++6 libgcc-s1 && rm -rf /var/lib/apt/lists/*
+WORKDIR /miners
+DOCKERFILE
+
+  docker build -t "$image" -f "$DIR/tmp/Dockerfile.keryx" "$DIR/tmp" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+  return ${PIPESTATUS[0]}
+}
+
+run_miner_native() {
+  log "iniciando keryx-miner.bin nativo"
+  log "config: $CONF"
+
+  if command -v stdbuf >/dev/null 2>&1; then
+    stdbuf -oL -eL "$DIR/keryx-miner.bin" $CONF "$@" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    rc=${PIPESTATUS[0]}
+  else
+    "$DIR/keryx-miner.bin" $CONF "$@" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    rc=${PIPESTATUS[0]}
+  fi
+  return "$rc"
+}
+
+run_miner_docker() {
+  image="keryx-hiveos-ubuntu22:22.04"
+  cname="keryx-miner-${HOSTNAME:-hive}"
+
+  log "Kernel inferior a 6.6.0-hiveos #60 detectado: $(uname -r) $(uname -v)"
+  log "Usando Docker Ubuntu 22.04 na mesma screen do HiveOS."
+
+  ensure_docker || return 31
+  ensure_docker_image || return 32
+
+  docker rm -f "$cname" >/dev/null 2>&1 || true
+
+  log "iniciando keryx-miner.bin dentro do container $image"
+  log "config: $CONF"
+
+  docker run --rm --name "$cname" \
+    --gpus all \
+    --network host \
+    --ipc host \
+    -v "$DIR:/miners" \
+    -v /etc/localtime:/etc/localtime:ro \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    -e KERYX_HOME=/miners \
+    -e XDG_CACHE_HOME=/miners/.keryx-cache \
+    -e HF_HOME=/miners/.keryx-cache/huggingface \
+    -e TMPDIR=/miners/tmp \
+    -e RUST_BACKTRACE="${RUST_BACKTRACE:-1}" \
+    -e LD_LIBRARY_PATH=/miners:/miners/lib:/miners/libs:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/lib/x86_64-linux-gnu \
+    -w /miners "$image" \
+    /bin/bash -lc "chmod 755 /miners/keryx-miner.bin 2>/dev/null || true; /miners/keryx-miner.bin $CONF" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+
+  return ${PIPESTATUS[0]}
+}
+
 start_once() {
   log "============================================================"
   log "KERYX START LOOP: $(date -Is)"
   log "Diretorio de execucao: $DIR"
+  log "Kernel: $(uname -r) $(uname -v)"
   log "============================================================"
 
   prepare_config || return $?
@@ -159,18 +274,15 @@ start_once() {
 
   run_fast_models_download
 
-  log "iniciando keryx-miner.bin"
-  log "config: $CONF"
-
-  if command -v stdbuf >/dev/null 2>&1; then
-    stdbuf -oL -eL "$DIR/keryx-miner.bin" $CONF "$@" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
-    rc=${PIPESTATUS[0]}
+  if [ "${KERYX_FORCE_DOCKER:-0}" = "1" ] || kernel_requires_docker; then
+    run_miner_docker "$@"
+    rc=$?
   else
-    "$DIR/keryx-miner.bin" $CONF "$@" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
-    rc=${PIPESTATUS[0]}
+    run_miner_native "$@"
+    rc=$?
   fi
 
-  log "keryx-miner.bin saiu com codigo $rc"
+  log "keryx-miner terminou com codigo $rc"
   return "$rc"
 }
 
