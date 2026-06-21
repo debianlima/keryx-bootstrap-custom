@@ -91,12 +91,21 @@ O HiveOS deve baixar o pacote da Release, extrair os arquivos em `/hive/miners/c
 
 Use apenas se quiser reinstalar manualmente os arquivos sem depender do pacote `.tar.gz`.
 
-No HiveOS normalmente você já está como `root`, então **não use `sudo -i` dentro do bloco**, porque ele abre outro shell interativo e pode parar a execução das linhas seguintes.
+O instalador agora verifica se está rodando como root. Se não estiver, ele mesmo reexecuta com `sudo -E bash`, sem precisar abrir um shell com `sudo -i`.
 
 ```bash
 wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/install-v14-flat-raw.sh
 bash /tmp/install-keryx-v14.sh
 ```
+
+Se o ambiente exigir sudo explicitamente, use:
+
+```bash
+wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/install-v14-flat-raw.sh
+sudo bash /tmp/install-keryx-v14.sh
+```
+
+Evite colocar `sudo -i` no meio do bloco, porque ele abre outro shell interativo e pode impedir a execução das linhas seguintes.
 
 ## Caminho correto no HiveOS testado
 
