@@ -2,15 +2,11 @@
 # h-config.sh precisa funcionar de dois jeitos:
 # 1) quando o HiveOS faz `source h-config.sh` dentro do miner-run;
 # 2) quando chamamos direto para debug/manual.
-# Por isso este arquivo DEFINE as funcoes esperadas pelo HiveOS e so gera
-# config automaticamente quando executado diretamente.
+# Agora ele NAO usa pool/wallet/extra padrao: tudo vem do Flight Sheet/API do HiveOS.
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 load_hiveos_flight_sheet() {
-  # Leitura direta do Flight Sheet local do HiveOS.
-  # Isso permite que h-run.sh/h-config.sh funcionem mesmo quando chamados fora
-  # do miner-run, sem depender de variaveis ja exportadas no ambiente.
   [ -f /hive-config/rig.conf ] && . /hive-config/rig.conf 2>/dev/null || true
   [ -f /hive-config/wallet.conf ] && . /hive-config/wallet.conf 2>/dev/null || true
 }
@@ -21,11 +17,6 @@ load_hiveos_flight_sheet
 [ -n "${CUSTOM_CONFIG_FILENAME:-}" ] || CUSTOM_CONFIG_FILENAME="$DIR/config.ini"
 [ -n "${CUSTOM_LOG_BASENAME:-}" ] || CUSTOM_LOG_BASENAME="/var/log/miner/keryx-miner"
 MINER_API_PORT="${WEB_PORT:-3338}"
-
-# Defaults usados quando o Flight Sheet nao personalizar os campos.
-DEFAULT_POOL="${KERYX_DEFAULT_POOL:-stratum+tcp://krx.baikalmine.com:9020}"
-DEFAULT_WALLET="${KERYX_DEFAULT_WALLET:-keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pnesa}"
-DEFAULT_EXTRA="${KERYX_DEFAULT_EXTRA:---light}"
 
 # O miner-run do HiveOS chama miner_ver e, se ela devolver algo, tenta instalar
 # pacote apt hive-miners-custom-<versao>. Para custom local/bootstrap isso NAO
@@ -45,20 +36,13 @@ miner_config_gen() {
   WALLET="${CUSTOM_TEMPLATE:-${CUSTOM_WALLET:-}}"
   USER_EXTRA="${CUSTOM_USER_CONFIG:-}"
 
-  [ -n "$POOL" ] || POOL="$DEFAULT_POOL"
-  [ -n "$WALLET" ] || WALLET="$DEFAULT_WALLET"
-
   FAST_MODELS=0
   FAST_MODELS_FORCE=0
   MINER_EXTRA=""
 
-  # Se o campo extra estiver vazio, usa --light. Se tiver apenas flags locais
-  # (--no-fast-models, --fast-models etc.), mantem --light mesmo assim.
-  EXTRA="${USER_EXTRA:-$DEFAULT_EXTRA}"
-
-  # Opcoes locais consumidas pelo wrapper. Elas NAO sao repassadas ao binario,
-  # para nao quebrar caso o minerador original nao reconheca esses argumentos.
-  for arg in $EXTRA; do
+  # Opcoes locais consumidas pelo wrapper. Elas NAO sao repassadas ao binario.
+  # Se o Extra config estiver vazio, nao forca --light nem qualquer outro default.
+  for arg in $USER_EXTRA; do
     case "$arg" in
       --fast-models|--fast-model-download|--download-models-fast|--hf-models)
         FAST_MODELS=1
@@ -77,8 +61,14 @@ miner_config_gen() {
     esac
   done
 
-  if [ -z "$(printf '%s' "$MINER_EXTRA" | tr -d '[:space:]')" ]; then
-    MINER_EXTRA=" $DEFAULT_EXTRA"
+  if [ -z "$POOL" ]; then
+    echo "ERRO: CUSTOM_URL/Pool URL vazio no Flight Sheet do HiveOS." >&2
+    return 13
+  fi
+
+  if [ -z "$WALLET" ]; then
+    echo "ERRO: CUSTOM_TEMPLATE/Wallet and worker template vazio no Flight Sheet do HiveOS." >&2
+    return 12
   fi
 
   CONF="-s $POOL --mining-address $WALLET$MINER_EXTRA"
@@ -89,8 +79,6 @@ miner_config_gen() {
   cat > "$DIR/keryx-local-options.env" <<EOF
 KERYX_FAST_MODELS=$FAST_MODELS
 KERYX_FAST_MODELS_FORCE=$FAST_MODELS_FORCE
-KERYX_DEFAULT_POOL="$DEFAULT_POOL"
-KERYX_DEFAULT_WALLET="$DEFAULT_WALLET"
 KERYX_EFFECTIVE_POOL="$POOL"
 KERYX_EFFECTIVE_WALLET="$WALLET"
 KERYX_MINER_EXTRA="$MINER_EXTRA"
