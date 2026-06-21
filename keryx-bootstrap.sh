@@ -119,13 +119,14 @@ if [ -n "$PACKAGE_SHA256" ]; then
 fi
 
 log "identificando pacote"
-if command -v file >/dev/null 2>&1 && file "$ARCHIVE" 2>/dev/null | grep -qi 'zip'; then
-  unzip -l "$ARCHIVE" | head -40 || true
-  unzip -q "$ARCHIVE" -d "$TMP_BASE/extract"
-elif gzip -t "$ARCHIVE" 2>/dev/null; then
+# Cuidado: a palavra 'gzip' contem 'zip'. Por isso NAO podemos detectar zip com grep simples em file.
+# Primeiro tentamos tar.gz, depois ZIP. Isso evita o erro "End-of-central-directory signature not found".
+if gzip -t "$ARCHIVE" >/dev/null 2>&1; then
+  log "tipo detectado: tar.gz/gzip"
   tar -tzf "$ARCHIVE" | head -40 || true
   tar -xzf "$ARCHIVE" -C "$TMP_BASE/extract"
 elif unzip -t "$ARCHIVE" >/dev/null 2>&1; then
+  log "tipo detectado: zip"
   unzip -l "$ARCHIVE" | head -40 || true
   unzip -q "$ARCHIVE" -d "$TMP_BASE/extract"
 else
