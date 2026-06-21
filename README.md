@@ -1,6 +1,48 @@
 # keryx-bootstrap-custom
 
-Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
+Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner, direto pelo Flight Sheet, sem comando manual no rig.
+
+## URL para colocar no HiveOS
+
+Use esta URL no campo **Custom Miner Install URL / Custom URL** do Flight Sheet:
+
+```text
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
+```
+
+Também existe a URL versionada:
+
+```text
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v6.tar.gz
+```
+
+SHA256 do pacote v6/latest:
+
+```text
+d2b83773190a91a27c6a3af40775ca2cafd38dd0a52d0d12adbbfdb05f89b410
+```
+
+## Configuração do Flight Sheet
+
+No Flight Sheet do HiveOS:
+
+- Miner: **Custom**
+- Install URL / Custom URL: use a URL `...hiveos-latest.tar.gz` acima.
+- Wallet / Template: endereço Keryx completo, por exemplo `keryx:...`
+- Pool / URL: pool stratum, por exemplo `stratum+tcp://krx.baikalmine.com:9020`
+- User Config: pode deixar vazio; vazio vira `--light` automaticamente.
+
+Exemplo de User Config opcional:
+
+```text
+--light
+```
+
+Para teste sem OPoI/inferência, quando suportado pelo binário:
+
+```text
+--no-opoi
+```
 
 ## O que esta versão faz
 
@@ -15,42 +57,18 @@ Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
 
 Por padrão, o bootstrap baixa:
 
-```bash
+```text
 https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-miner-v032opoi_hiveosv5.tar.gz
 ```
 
-Para trocar o pacote real sem alterar script, defina no ambiente:
+Para trocar o pacote real sem alterar script, defina no ambiente, se for necessário em uma versão futura:
 
 ```bash
 export KERYX_PACKAGE_URL="https://servidor/arquivo-keryx.tar.gz"
 export KERYX_PACKAGE_SHA256="sha256-opcional"
 ```
 
-## Como testar no HiveOS depois de instalado
-
-```bash
-cd /hive/miners/custom/keryx-miner
-bash -n h-run.sh h-config.sh h-stats.sh keryx-bootstrap.sh
-./h-config.sh
-cat config.ini
-./h-run.sh
-```
-
-Logs:
-
-```bash
-tail -f /var/log/miner/keryx-miner.log
-```
-
-## Observação importante
-
-Para usar direto no campo **Install URL / Custom URL** do HiveOS, o arquivo precisa ser um `.tar.gz` com a pasta `keryx-miner/` no topo. O pacote gerado para esta versão se chama:
-
-```bash
-keryx-bootstrap-custom-hiveos-v6.tar.gz
-```
-
-Estrutura esperada:
+## Estrutura do pacote HiveOS
 
 ```text
 keryx-miner/
@@ -61,4 +79,12 @@ keryx-miner/h-run
 keryx-miner/h-stats.sh
 keryx-miner/keryx-bootstrap.sh
 keryx-miner/keryx-miner
+```
+
+## Logs no HiveOS
+
+Depois que o HiveOS iniciar pelo Flight Sheet, o log fica em:
+
+```text
+/var/log/miner/keryx-miner.log
 ```
