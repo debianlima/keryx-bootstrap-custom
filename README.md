@@ -18,6 +18,33 @@ Mudancas principais:
 - Mantem o modo Docker para kernel inferior a 6.6 e o aviso ao usuario.
 - Mantem h-stats no padrao HiveOS com hs_units khs.
 
+## Versao do minerador original
+
+O bootstrap nao baixa automaticamente a ultima release do Keryx-Labs/keryx-miner.
+
+Por padrao, ele baixa sempre a versao original fixada no keryx-bootstrap.sh:
+
+```text
+KERYX_REPO=Keryx-Labs/keryx-miner
+KERYX_TAG=v0.3.2-OPoI
+```
+
+Isso foi feito de proposito para evitar que uma release nova do minerador original quebre o Custom Miner do HiveOS sem teste.
+
+Para trocar a versao original manualmente, use variaveis de ambiente antes do bootstrap:
+
+```bash
+export KERYX_TAG="v0.3.3-EXEMPLO"
+```
+
+Ou force uma URL exata do pacote original:
+
+```bash
+export KERYX_PACKAGE_URL="https://github.com/Keryx-Labs/keryx-miner/releases/download/ALGUMA-VERSAO/arquivo.tar.gz"
+```
+
+Se nenhuma dessas variaveis for definida, sera usada a versao v0.3.2-OPoI.
+
 ## Destaque: modo de compatibilidade HiveOS kernel 6.1.0
 
 Este pacote tem modo de compatibilidade para rigs HiveOS antigas, principalmente rigs com kernel 6.1.0-hiveos.
