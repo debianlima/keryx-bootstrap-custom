@@ -6,6 +6,20 @@ Bootstrap para rodar o Keryx Miner no HiveOS como **Custom Miner**, direto pelo 
 
 Versão corrigida e confirmada no rig: **v14-forçado**.
 
+Release correta no GitHub:
+
+```text
+https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
+```
+
+URL direta do asset para colocar no **Custom Miner Install URL / Installation URL** do HiveOS:
+
+```text
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v14-forcado.tar.gz
+```
+
+Importante: no HiveOS, use a URL `/releases/download/...tar.gz`, não a página `/releases/tag/...`. A página da tag serve para visualizar a release no navegador; o campo Installation URL precisa baixar o arquivo `.tar.gz` diretamente.
+
 A correção principal da v14 é compatibilidade com o caminho real usado pelo HiveOS 0.6-229:
 
 ```text
@@ -29,41 +43,6 @@ miner_fork()       # retorna vazio
 miner_config_gen() # gera config.ini a partir do Flight Sheet/defaults
 ```
 
-## Instalação rápida no rig
-
-Use este comando no HiveOS:
-
-```bash
-sudo -i
-wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/install-v14-flat-raw.sh
-bash /tmp/install-keryx-v14.sh
-```
-
-O instalador:
-
-1. para o miner atual;
-2. faz backup dos arquivos atuais de `/hive/miners/custom`;
-3. baixa os scripts corrigidos do projeto;
-4. aplica permissões;
-5. inicia automaticamente com `miner start`;
-6. mostra processos, log e screens.
-
-## Caminho correto no HiveOS testado
-
-Os callbacks precisam ficar diretamente em:
-
-```text
-/hive/miners/custom/
-```
-
-porque, no rig testado, o HiveOS chama o miner como `MINER_NAME=custom` e o `miner-run` procura:
-
-```text
-/hive/miners/custom/h-manifest.conf
-/hive/miners/custom/h-config.sh
-/hive/miners/custom/h-run.sh
-```
-
 ## Configuração do Flight Sheet
 
 No Flight Sheet do HiveOS:
@@ -73,6 +52,9 @@ Miner: Custom
 
 Miner name:
 keryx-miner
+
+Installation URL:
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v14-forcado.tar.gz
 
 Hash algorithm:
 blake3-alph
@@ -92,9 +74,48 @@ deixe vazio ou --no-fast-models
 
 Mesmo se `Extra config arguments` tiver apenas `--no-fast-models`, a v14 mantém `--light` por padrão para placas de 8 GB.
 
+## Instalação pelo HiveOS sem comando manual
+
+Depois de configurar o Flight Sheet com a URL da Release, aplique o Flight Sheet ao rig e rode normalmente pelo HiveOS:
+
+```bash
+miner stop
+sleep 3
+screen -wipe
+miner start
+```
+
+O HiveOS deve baixar o pacote da Release, extrair os arquivos em `/hive/miners/custom` e iniciar via `miner-run custom 3`.
+
+## Instalador alternativo para debug
+
+Use apenas se quiser reinstalar manualmente os arquivos sem depender do pacote `.tar.gz`:
+
+```bash
+sudo -i
+wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/install-v14-flat-raw.sh
+bash /tmp/install-keryx-v14.sh
+```
+
+## Caminho correto no HiveOS testado
+
+Os callbacks precisam ficar diretamente em:
+
+```text
+/hive/miners/custom/
+```
+
+porque, no rig testado, o HiveOS chama o miner como `MINER_NAME=custom` e o `miner-run` procura:
+
+```text
+/hive/miners/custom/h-manifest.conf
+/hive/miners/custom/h-config.sh
+/hive/miners/custom/h-run.sh
+```
+
 ## Teste direto
 
-Depois de instalar, o teste correto não é digitar `h-run.sh`; é chamar o mesmo caminho do HiveOS:
+O teste correto não é digitar `h-run.sh`; é chamar o mesmo caminho do HiveOS:
 
 ```bash
 miner stop
