@@ -40,6 +40,49 @@ Extra config arguments: --light
 
 Coloque sua wallet no campo Wallet and worker template.
 
+## Instalacao manual de recuperacao
+
+Use este comando quando o minerador nao iniciar, quando o HiveOS nao criar a pasta `/hive/miners/custom`, ou quando a pasta `custom` tiver sido apagada:
+
+```bash
+miner stop 2>/dev/null || true
+sleep 3
+screen -wipe || true
+
+URL="https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v24-no-hconfig-defaults.tar.gz"
+TMP="/tmp/keryx-custom-manual"
+PKG="/tmp/keryx-custom.tar.gz"
+
+rm -rf "$TMP"
+mkdir -p "$TMP" /hive/miners/custom
+
+wget -O "$PKG" "$URL" || exit 1
+gzip -t "$PKG" || exit 1
+tar -xzf "$PKG" -C "$TMP" || exit 1
+
+if [ -f "$TMP/h-manifest.conf" ]; then
+  cp -af "$TMP/." /hive/miners/custom/
+elif [ -f "$TMP/custom/h-manifest.conf" ]; then
+  cp -af "$TMP/custom/." /hive/miners/custom/
+else
+  echo "ERRO: pacote baixado, mas h-manifest.conf nao foi encontrado"
+  find "$TMP" -maxdepth 3 -type f | sort
+  exit 1
+fi
+
+chmod 755 /hive/miners/custom/h-run \
+          /hive/miners/custom/h-run.sh \
+          /hive/miners/custom/h-config.sh \
+          /hive/miners/custom/h-stats.sh \
+          /hive/miners/custom/keryx-bootstrap.sh \
+          /hive/miners/custom/keryx-miner 2>/dev/null || true
+
+[ -f /hive/miners/custom/keryx-miner.bin ] && chmod 755 /hive/miners/custom/keryx-miner.bin
+
+ls -la /hive/miners/custom
+miner start
+```
+
 ## Hotfix rapido
 
 ```bash
