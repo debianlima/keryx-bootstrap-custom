@@ -6,6 +6,16 @@
 # config automaticamente quando executado diretamente.
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+load_hiveos_flight_sheet() {
+  # Leitura direta do Flight Sheet local do HiveOS.
+  # Isso permite que h-run.sh/h-config.sh funcionem mesmo quando chamados fora
+  # do miner-run, sem depender de variaveis ja exportadas no ambiente.
+  [ -f /hive-config/rig.conf ] && . /hive-config/rig.conf 2>/dev/null || true
+  [ -f /hive-config/wallet.conf ] && . /hive-config/wallet.conf 2>/dev/null || true
+}
+
+load_hiveos_flight_sheet
 [ -f "$DIR/h-manifest.conf" ] && . "$DIR/h-manifest.conf"
 
 [ -n "${CUSTOM_CONFIG_FILENAME:-}" ] || CUSTOM_CONFIG_FILENAME="$DIR/config.ini"
@@ -29,6 +39,8 @@ miner_fork() {
 }
 
 miner_config_gen() {
+  load_hiveos_flight_sheet
+
   POOL="${CUSTOM_URL:-${CUSTOM_POOL:-}}"
   WALLET="${CUSTOM_TEMPLATE:-${CUSTOM_WALLET:-}}"
   USER_EXTRA="${CUSTOM_USER_CONFIG:-}"
@@ -82,6 +94,11 @@ KERYX_DEFAULT_WALLET="$DEFAULT_WALLET"
 KERYX_EFFECTIVE_POOL="$POOL"
 KERYX_EFFECTIVE_WALLET="$WALLET"
 KERYX_MINER_EXTRA="$MINER_EXTRA"
+KERYX_HIVEOS_CUSTOM_MINER="${CUSTOM_MINER:-}"
+KERYX_HIVEOS_ALGO="${CUSTOM_ALGO:-}"
+KERYX_HIVEOS_PASS="${CUSTOM_PASS:-}"
+KERYX_HIVEOS_TLS="${CUSTOM_TLS:-}"
+KERYX_HIVEOS_INSTALL_URL="${CUSTOM_INSTALL_URL:-}"
 EOF
 
   printf '%s\n' "$CONF"
