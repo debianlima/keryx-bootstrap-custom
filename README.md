@@ -4,21 +4,24 @@ Bootstrap para rodar o Keryx Miner no HiveOS como **Custom Miner**, direto pelo 
 
 ## Status atual
 
-Versão corrigida dos scripts: **v14**.
+Versão corrigida e confirmada no rig: **v14-forçado**.
 
-A correção principal da v14 é compatibilidade com o `miner-run custom 3` do HiveOS 0.6-229:
+A correção principal da v14 é compatibilidade com o caminho real usado pelo HiveOS 0.6-229:
 
 ```text
-/hive/bin/miner-run custom 3
-  -> procura arquivos em /hive/miners/custom
-  -> faz source h-manifest.conf
-  -> faz source h-config.sh
-  -> chama miner_ver
-  -> chama miner_config_gen
-  -> depois faz source h-run.sh
+miner start
+  -> screen miner
+  -> miner-run custom 3
+  -> /hive/miners/custom/h-manifest.conf
+  -> /hive/miners/custom/h-config.sh
+  -> miner_ver
+  -> miner_config_gen
+  -> /hive/miners/custom/h-run.sh
 ```
 
-Antes o `h-config.sh` apenas gerava o `config.ini` quando executado manualmente. Agora ele também define as funções obrigatórias do HiveOS:
+Antes o Keryx funcionava manualmente porque o usuário digitava `h-run.sh`, mas o automático morria antes de chegar no `h-run.sh`, pois o `h-config.sh` não definia as funções esperadas pelo `miner-run`.
+
+Agora o `h-config.sh` define:
 
 ```bash
 miner_ver()        # retorna vazio para o HiveOS nao tentar instalar pacote apt hive-miners-custom-versao
@@ -36,7 +39,18 @@ wget -qO /tmp/install-keryx-v14.sh https://raw.githubusercontent.com/debianlima/
 bash /tmp/install-keryx-v14.sh
 ```
 
-Esse instalador coloca os callbacks diretamente em:
+O instalador:
+
+1. para o miner atual;
+2. faz backup dos arquivos atuais de `/hive/miners/custom`;
+3. baixa os scripts corrigidos do projeto;
+4. aplica permissões;
+5. inicia automaticamente com `miner start`;
+6. mostra processos, log e screens.
+
+## Caminho correto no HiveOS testado
+
+Os callbacks precisam ficar diretamente em:
 
 ```text
 /hive/miners/custom/
@@ -80,7 +94,7 @@ Mesmo se `Extra config arguments` tiver apenas `--no-fast-models`, a v14 mantém
 
 ## Teste direto
 
-Depois de instalar:
+Depois de instalar, o teste correto não é digitar `h-run.sh`; é chamar o mesmo caminho do HiveOS:
 
 ```bash
 miner stop
@@ -99,11 +113,12 @@ Miner:   custom
 [KERYX-HIVEOS] iniciando keryx-miner.bin
 ```
 
-Depois rode pelo fluxo normal:
+Fluxo normal:
 
 ```bash
 miner stop
 sleep 3
+screen -wipe
 miner start
 sleep 8
 tail -120 /var/log/miner/keryx-miner.log
@@ -120,7 +135,7 @@ tail -120 /var/log/miner/keryx-miner.log
 
 ```text
 h-manifest.conf       -> manifest dinâmico, usa a pasta onde foi instalado
-h-config.sh           -> define miner_ver/miner_config_gen e gera config.ini
+h-config.sh           -> define miner_ver/miner_fork/miner_config_gen e gera config.ini
 h-run.sh              -> inicia bootstrap/modelos/binário real
 h-stats.sh            -> stats mínimos para o HiveOS
 keryx-bootstrap.sh    -> baixa o pacote real Keryx-Labs/keryx-miner v0.3.2-OPoI
