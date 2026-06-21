@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set +e
 
-MANIFEST="/hive/miners/custom/keryx-miner/h-manifest.conf"
-[ -f "$MANIFEST" ] || MANIFEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/h-manifest.conf"
+MANIFEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/h-manifest.conf"
 . "$MANIFEST" 2>/dev/null || true
 
 LOG="${CUSTOM_LOG_BASENAME:-/var/log/miner/keryx-miner}.log"
-VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v11}"
+VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v14-forcado}"
 ALGO="blake3-alph"
 now="$(date +%s)"
 khs=0
@@ -56,8 +55,6 @@ else
   stats="{\"hs\":[$khs],\"hs_units\":\"khs\",\"algo\":\"$ALGO\",\"ver\":\"$VERSION\"}"
 fi
 
-# HiveOS inclui este arquivo e espera as variáveis khs e stats definidas.
-# Se alguém executar diretamente, mostramos uma saída de diagnóstico.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   echo "Log file : $LOG"
   echo "Time since last relevant log entry : $diffTime"
