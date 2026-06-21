@@ -1,6 +1,6 @@
 # Configuração do Flight Sheet no HiveOS
 
-Use esta página para configurar o Keryx como **Custom Miner** sem executar comandos manuais no rig.
+Use esta página para configurar o Keryx como **Custom Miner**.
 
 ## URL da Release
 
@@ -13,7 +13,7 @@ https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
 URL direta do pacote `.tar.gz` para o HiveOS:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v14-forcado.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v16-autoinstall.tar.gz
 ```
 
 ## Campos do Custom Miner
@@ -22,10 +22,10 @@ https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap
 Miner: Custom
 
 Miner name:
-keryx-miner
+keryx-bootstrap-custom-hiveos-v16
 
 Installation URL:
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v14-forcado.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v16-autoinstall.tar.gz
 
 Hash algorithm:
 blake3-alph
@@ -48,7 +48,7 @@ deixe vazio ou --no-fast-models
 O campo **Installation URL** precisa receber a URL direta do arquivo:
 
 ```text
-/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v14-forcado.tar.gz
+/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v16-autoinstall.tar.gz
 ```
 
 Não use a URL da página da release:
@@ -56,6 +56,17 @@ Não use a URL da página da release:
 ```text
 /releases/tag/bootstrap
 ```
+
+## Patch de auto-instalação
+
+Em alguns rigs, o HiveOS não recria `/hive/miners/custom` sozinho depois que a pasta é apagada. Para corrigir isso, aplique uma vez:
+
+```bash
+wget -qO /tmp/patch-keryx-auto-install.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/patch-hiveos-miner-run-auto-install.sh
+bash /tmp/patch-keryx-auto-install.sh
+```
+
+Depois disso, ao rodar `miner start`, o wrapper verifica se o custom está ausente e baixa a Release automaticamente usando `CUSTOM_INSTALL_URL`.
 
 ## Depois de aplicar o Flight Sheet
 
@@ -69,5 +80,5 @@ miner start
 A inicialização deve ocorrer pelo caminho real do HiveOS:
 
 ```text
-miner start -> miner-run custom 3 -> h-config.sh -> miner_config_gen -> h-run.sh
+miner start -> miner-run custom -> h-config.sh -> miner_config_gen -> h-run.sh
 ```
