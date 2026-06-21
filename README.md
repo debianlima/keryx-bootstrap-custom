@@ -10,63 +10,105 @@ Use esta URL no campo **Custom Miner Install URL / Custom URL** do Flight Sheet:
 https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
 ```
 
-Também existe a URL versionada:
+## Configuração padrão do Flight Sheet
 
-```text
-https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v6.tar.gz
-```
+Print de referência:
 
-SHA256 do pacote v6/latest:
-
-```text
-d2b83773190a91a27c6a3af40775ca2cafd38dd0a52d0d12adbbfdb05f89b410
-```
-
-## Configuração do Flight Sheet
+![Configuração padrão no HiveOS](docs/hiveos-flight-sheet-keryx-default.jpg)
 
 No Flight Sheet do HiveOS:
 
-- Miner: **Custom**
-- Install URL / Custom URL: use a URL `...hiveos-latest.tar.gz` acima.
-- Wallet / Template: endereço Keryx completo, por exemplo `keryx:...`
-- Pool / URL: pool stratum, por exemplo `stratum+tcp://krx.baikalmine.com:9020`
-- User Config: pode deixar vazio; vazio vira `--light` automaticamente.
+```text
+Miner name:
+keryx-miner
 
-Exemplo de User Config opcional:
+Installation URL:
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
+
+Hash algorithm:
+blake3-alph
+
+Wallet and worker template:
+keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pnesa
+
+Pool URL:
+stratum+tcp://krx.baikalmine.com:9020
+
+Pass:
+deixe vazio
+
+Extra config arguments:
+deixe vazio
+```
+
+Se você deixar **Pool URL**, **Wallet and worker template** ou **Extra config arguments** vazios, o script usa estes padrões:
 
 ```text
---light
+Pool URL padrão: stratum+tcp://krx.baikalmine.com:9020
+Wallet padrão: keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pnesa
+Extra padrão: --light
 ```
 
-Para teste sem OPoI/inferência, quando suportado pelo binário:
+## Extra config especial para baixar modelos mais rápido
+
+Para habilitar o download rápido dos modelos pelo link alternativo, coloque no campo **Extra config arguments**:
 
 ```text
---no-opoi
+--fast-models
 ```
 
-## O que esta versão faz
-
-- Mantém a pasta esperada pelo HiveOS como `keryx-miner`.
-- Gera `config.ini` a partir do Flight Sheet: `CUSTOM_URL` vira `-s` e `CUSTOM_TEMPLATE` vira `--mining-address`.
-- Usa `--light` por padrão quando o campo User Config está vazio.
-- Baixa o pacote real do Keryx na primeira execução, valida o `.tar.gz`, extrai em área temporária e preserva os scripts HiveOS corrigidos.
-- Renomeia o binário ELF `keryx-miner` para `keryx-miner.bin` e mantém `keryx-miner` como wrapper.
-- Mantém o HiveOS vivo durante bootstrap/download/model/prefetch retornando estatística provisória no `h-stats.sh`.
-
-## URL do pacote real usado pelo bootstrap
-
-Por padrão, o bootstrap baixa:
+O wrapper baixa e executa o script alternativo de modelos do Hugging Face antes de iniciar o minerador. Para forçar novo download mesmo depois de já ter concluído uma vez:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-miner-v032opoi_hiveosv5.tar.gz
+--fast-models-force
 ```
 
-Para trocar o pacote real sem alterar script, defina no ambiente, se for necessário em uma versão futura:
+Para desabilitar explicitamente:
 
-```bash
-export KERYX_PACKAGE_URL="https://servidor/arquivo-keryx.tar.gz"
-export KERYX_PACKAGE_SHA256="sha256-opcional"
+```text
+--no-fast-models
 ```
+
+Essas opções são consumidas pelo wrapper local e não são repassadas ao binário Keryx.
+
+## O que esta versão corrige no HiveOS
+
+```text
+Flight Sheet
+   |
+   v
+HiveOS baixa o pacote .tar.gz
+   |
+   v
+/hive/miners/custom/keryx-miner/
+   |
+   +-- h-manifest.conf       -> nome, versão, binário e log para o HiveOS
+   +-- h-config.sh           -> cria config.ini com pool/wallet/defaults
+   +-- h-run.sh              -> bootstrap + modelos rápidos + start real
+   +-- h-stats.sh            -> mantém status vivo no HiveOS
+   +-- keryx-bootstrap.sh    -> baixa e instala o pacote real do Keryx
+   +-- keryx-miner           -> wrapper
+   +-- keryx-miner.bin       -> binário real baixado no primeiro start
+```
+
+Correções aplicadas:
+
+1. Mantém a pasta esperada pelo HiveOS como `keryx-miner`.
+2. Evita executar pela raiz `/hive/miners/custom`.
+3. Gera `config.ini` automaticamente a partir do Flight Sheet.
+4. Usa defaults seguros quando os campos do HiveOS ficam vazios.
+5. Usa `--light` por padrão para placas de 8 GB.
+6. Executa bootstrap automático se `keryx-miner.bin` ainda não existir.
+7. Baixa o pacote real do Keryx e valida o `.tar.gz` com `gzip -t`.
+8. Extrai em área temporária antes de copiar para a pasta final.
+9. Preserva os scripts corrigidos do HiveOS quando extrai o pacote original.
+10. Detecta se o binário real veio como ELF chamado `keryx-miner` e renomeia para `keryx-miner.bin`.
+11. Recria o wrapper `keryx-miner` para chamar o binário real.
+12. Ajusta permissões de execução automaticamente.
+13. Cria diretórios de cache/modelos/logs.
+14. Configura variáveis de ambiente do Keryx, cache, temporários e bibliotecas.
+15. Opcionalmente executa o download rápido dos modelos via `--fast-models`.
+16. O `h-stats.sh` retorna atividade provisória durante bootstrap/download/model/prefetch para reduzir chance do HiveOS matar o custom miner por falta de status.
 
 ## Estrutura do pacote HiveOS
 
@@ -82,8 +124,6 @@ keryx-miner/keryx-miner
 ```
 
 ## Logs no HiveOS
-
-Depois que o HiveOS iniciar pelo Flight Sheet, o log fica em:
 
 ```text
 /var/log/miner/keryx-miner.log
