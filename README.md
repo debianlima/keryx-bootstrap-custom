@@ -4,11 +4,16 @@ Bootstrap para rodar o Keryx Miner no HiveOS como **Custom Miner**, direto pelo 
 
 ## Status atual
 
-Versão atual documentada: **v17-auto-install**.
+Versão atual documentada: **v18-bootstrapfix**.
 
-O pacote do Custom Miner continua sendo usado no campo **Installation URL** do HiveOS. A correção nova da v17 atualiza o patch de auto-instalação para cobrir **dois pontos do HiveOS**: `/hive/bin/miner` e `/hive/bin/miner-run`.
+A v18 corrige o erro do bootstrap ao baixar o pacote real do Keryx. O pacote oficial baixado é `.tar.gz`, mas o script antigo usava `file ... | grep zip`; como a palavra `gzip` contém `zip`, ele tentava abrir `.tar.gz` com `unzip`, causando:
 
-Isso foi necessário porque em alguns rigs o HiveOS não baixa a Release automaticamente quando a pasta `/hive/miners/custom` foi apagada. O wrapper no `miner` tenta instalar antes de criar a screen, e o wrapper no `miner-run` tenta instalar antes de executar o custom.
+```text
+End-of-central-directory signature not found
+unzip: cannot find zipfile directory
+```
+
+Agora o `keryx-bootstrap.sh` testa `gzip -t` primeiro, extrai com `tar -xzf`, e só depois tenta ZIP.
 
 ## Release correta
 
@@ -18,67 +23,28 @@ Página visual da Release:
 https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
 ```
 
-URL direta esperada do novo asset v17 para colocar no **Custom Miner Install URL / Installation URL** do HiveOS:
+URL direta esperada do novo asset v18 para colocar no **Custom Miner Install URL / Installation URL** do HiveOS:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v17-autoinstall.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v18-bootstrapfix.tar.gz
+```
+
+SHA256 do pacote v18:
+
+```text
+124a91e30ea7bc4dcac6421ba90cb6030edb1a1a42aea8a862f4aa2812362258
 ```
 
 Importante: no HiveOS, use a URL `/releases/download/...tar.gz`, não a página `/releases/tag/...`.
 
-SHA256 do pacote v17:
+## Correções mantidas
 
-```text
-65dc2ab4682dec225812446d24fa468f7ccbcf770481100d31ca80b885491839
-```
+A v18 mantém as correções anteriores:
 
-## Problema confirmado no HiveOS
-
-O `CUSTOM_INSTALL_URL` estava correto e a Release respondia `HTTP/1.1 200 OK`, mas o HiveOS não recriava `/hive/miners/custom` automaticamente depois da pasta ser removida.
-
-O fluxo real observado foi:
-
-```text
-miner start
-  -> screen miner
-  -> miner-run custom 2
-  -> espera existir /hive/miners/custom/h-manifest.conf
-  -> espera existir /hive/miners/custom/h-config.sh
-  -> espera existir /hive/miners/custom/h-run.sh
-```
-
-Ou seja: quando a pasta `custom` já existe, funciona. Quando ela foi apagada, alguns rigs não disparam o download do `CUSTOM_INSTALL_URL` sozinhos.
-
-## Correção v17
-
-A v17 mantém os scripts funcionais do minerador e atualiza:
-
-```text
-scripts/patch-hiveos-miner-run-auto-install.sh
-```
-
-Esse patch cria:
-
-```text
-/hive/bin/keryx-auto-install-common.sh
-/hive/bin/miner.keryx-wrapper
-/hive/bin/miner-run.keryx-wrapper
-```
-
-O wrapper do `/hive/bin/miner` verifica se o Flight Sheet usa `custom` antes do `miner start` criar a screen. O wrapper do `/hive/bin/miner-run` verifica de novo quando o HiveOS chama `miner-run custom`. Se `/hive/miners/custom` estiver ausente/incompleto, ele baixa o pacote definido em `CUSTOM_INSTALL_URL`, extrai em `/hive/miners/custom` e depois chama o binário original.
-
-Backups criados pelo patch:
-
-```text
-/hive/bin/miner.hiveos-original
-/hive/bin/miner-run.hiveos-original
-```
-
-Log do auto-install:
-
-```text
-/var/log/miner/keryx-auto-install.log
-```
+- `h-config.sh` define `miner_ver`, `miner_fork` e `miner_config_gen`;
+- `h-run.sh` gera a config e inicia `keryx-miner.bin`;
+- `keryx-miner` é wrapper para `h-run.sh`;
+- `scripts/patch-hiveos-miner-run-auto-install.sh` corrige rigs onde o HiveOS não recria `/hive/miners/custom` automaticamente.
 
 ## Configuração do Flight Sheet
 
@@ -88,10 +54,10 @@ No Flight Sheet do HiveOS:
 Miner: Custom
 
 Miner name:
-keryx-bootstrap-custom-hiveos-v17
+keryx-bootstrap-custom-hiveos-v18
 
 Installation URL:
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v17-autoinstall.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v18-bootstrapfix.tar.gz
 
 Hash algorithm:
 blake3-alph
@@ -119,6 +85,18 @@ bash /tmp/patch-keryx-auto-install.sh
 ```
 
 Depois disso, mesmo se `/hive/miners/custom` for removida, o próximo `miner start` deve baixar a Release definida em `CUSTOM_INSTALL_URL` e recriar a pasta.
+
+## Hotfix rápido sem trocar Release
+
+Se o rig já está com os arquivos instalados mas falha no bootstrap com erro de `unzip`, atualize só o `keryx-bootstrap.sh`:
+
+```bash
+miner stop 2>/dev/null || true
+sleep 3
+wget -qO /hive/miners/custom/keryx-bootstrap.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/keryx-bootstrap.sh
+chmod 755 /hive/miners/custom/keryx-bootstrap.sh
+miner start
+```
 
 ## Teste do zero
 
