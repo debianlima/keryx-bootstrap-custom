@@ -4,38 +4,27 @@ Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner, direto pelo Flig
 
 ## Status atual
 
-Versão recomendada: **v9**.
+Versão recomendada do pacote HiveOS: **v10**.
 
-O pacote **v9** foi testado no rig com:
-
-```bash
-gzip -t /tmp/keryx-v9.tar.gz
-tar -tzf /tmp/keryx-v9.tar.gz | head -50
-```
-
-Resultado esperado e confirmado:
+O pacote HiveOS v10 instala apenas o wrapper/bootstrap do HiveOS. Depois, na primeira execução, o `keryx-bootstrap.sh` baixa o **minerador real** do release oficial:
 
 ```text
-OK_GZIP
-keryx-miner/
-keryx-miner/h-config.sh
-keryx-miner/h-manifest.conf
-keryx-miner/h-run
-keryx-miner/h-run.sh
-keryx-miner/h-stats.sh
-keryx-miner/keryx-bootstrap.sh
-keryx-miner/keryx-miner
+Repo real: Keryx-Labs/keryx-miner
+Tag real:  v0.3.2-OPoI
+Arch:      sm86
 ```
+
+A tag oficial `v0.3.2-OPoI` é obrigatória porque o release informa que mineradores v0.3.1 ou anteriores produzem shares inválidos, e também informa que para RTX 30xx/40xx deve ser usado o pacote `sm86`.
 
 ## URL recomendada para colocar no HiveOS
 
-Use a URL **versionada v9** no campo **Custom Miner Install URL / Installation URL** do Flight Sheet:
+Use a URL **versionada v10** no campo **Custom Miner Install URL / Installation URL** do Flight Sheet:
 
 ```text
-https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v10.tar.gz
 ```
 
-A URL `latest` também existe, mas para evitar cache do GitHub/CDN durante testes, prefira a v9:
+A URL `latest` também existe, mas para evitar cache do GitHub/CDN durante testes, prefira a v10:
 
 ```text
 https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
@@ -54,7 +43,7 @@ Miner name:
 keryx-miner
 
 Installation URL:
-https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v10.tar.gz
 
 Hash algorithm:
 blake3-alph
@@ -80,6 +69,28 @@ Wallet padrão: keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pn
 Extra padrão: --light
 ```
 
+## Correção importante da v10
+
+O pacote v9 estava certo como pacote HiveOS, mas o `keryx-bootstrap.sh` ainda tentava baixar o pacote real do minerador pelo link antigo:
+
+```text
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-miner-v032opoi_hiveosv5.tar.gz
+```
+
+Esse link retornava **404 Not Found**, então o HiveOS instalava o wrapper, mas não conseguia baixar o `keryx-miner.bin`.
+
+Na v10, isso foi corrigido. O bootstrap agora:
+
+```text
+1. Consulta a API do GitHub do repo oficial Keryx-Labs/keryx-miner.
+2. Usa a tag v0.3.2-OPoI.
+3. Procura automaticamente asset .tar.gz/.tgz/.zip.
+4. Prioriza asset com sm86, indicado para RTX 30xx/40xx.
+5. Baixa, valida, extrai e procura o binário ELF keryx-miner.
+6. Renomeia o binário real para keryx-miner.bin.
+7. Mantém keryx-miner como wrapper do HiveOS.
+```
+
 ## Extra config especial para baixar modelos mais rápido
 
 Para habilitar o download rápido dos modelos pelo link alternativo, coloque no campo **Extra config arguments**:
@@ -102,37 +113,49 @@ Para desabilitar explicitamente:
 
 Essas opções são consumidas pelo wrapper local e não são repassadas ao binário Keryx.
 
-## Correção importante da v9
+## Validação do pacote HiveOS
 
-As versões anteriores do pacote `.tar.gz` chegaram a baixar com HTTP 200, mas falhavam no teste:
-
-```text
-gzip: invalid compressed data--crc error
-gzip: invalid compressed data--length error
-gzip: invalid compressed data--format violated
-```
-
-Quando isso acontece, o HiveOS não consegue extrair o pacote e a pasta abaixo não é criada:
-
-```text
-/hive/miners/custom/keryx-miner
-```
-
-Sintoma observado:
-
-```text
-No miner screens found
-ls: cannot access '/hive/miners/custom/keryx-miner': No such file or directory
-```
-
-A v9 foi recriada para corrigir isso. Antes de aplicar no Flight Sheet, pode validar no rig com:
+Antes de aplicar no Flight Sheet, pode validar no rig com:
 
 ```bash
-URL='https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz'
-rm -f /tmp/keryx-v9.tar.gz
-wget -O /tmp/keryx-v9.tar.gz "$URL"
-gzip -t /tmp/keryx-v9.tar.gz && echo OK_GZIP
-tar -tzf /tmp/keryx-v9.tar.gz | head -50
+URL='https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v10.tar.gz'
+rm -f /tmp/keryx-v10.tar.gz
+wget -O /tmp/keryx-v10.tar.gz "$URL"
+gzip -t /tmp/keryx-v10.tar.gz && echo OK_GZIP
+tar -tzf /tmp/keryx-v10.tar.gz | head -50
+```
+
+Resultado esperado:
+
+```text
+OK_GZIP
+keryx-miner/
+keryx-miner/h-config.sh
+keryx-miner/h-manifest.conf
+keryx-miner/h-run
+keryx-miner/h-run.sh
+keryx-miner/h-stats.sh
+keryx-miner/keryx-bootstrap.sh
+keryx-miner/keryx-miner
+```
+
+## Teste do resolvedor do minerador real
+
+Depois que o pacote estiver instalado em `/hive/miners/custom/keryx-miner`, você pode testar somente o resolvedor do pacote real assim:
+
+```bash
+cd /hive/miners/custom/keryx-miner
+bash -x ./keryx-bootstrap.sh
+```
+
+Ele deve mostrar algo parecido com:
+
+```text
+[KERYX-BOOTSTRAP] descobrindo pacote real no GitHub
+[KERYX-BOOTSTRAP] repo: Keryx-Labs/keryx-miner
+[KERYX-BOOTSTRAP] tag:  v0.3.2-OPoI
+[KERYX-BOOTSTRAP] arch: sm86
+[KERYX-BOOTSTRAP] asset escolhido: ...sm86...
 ```
 
 ## O que esta versão corrige no HiveOS
@@ -163,30 +186,20 @@ Correções aplicadas:
 4. Usa defaults seguros quando os campos do HiveOS ficam vazios.
 5. Usa `--light` por padrão para placas de 8 GB.
 6. Executa bootstrap automático se `keryx-miner.bin` ainda não existir.
-7. Baixa o pacote real do Keryx e valida o `.tar.gz` com `gzip -t`.
-8. Extrai em área temporária antes de copiar para a pasta final.
-9. Preserva os scripts corrigidos do HiveOS quando extrai o pacote original.
-10. Detecta se o binário real veio como ELF chamado `keryx-miner` e renomeia para `keryx-miner.bin`.
-11. Recria o wrapper `keryx-miner` para chamar o binário real.
-12. Ajusta permissões de execução automaticamente.
-13. Cria diretórios de cache/modelos/logs.
-14. Configura variáveis de ambiente do Keryx, cache, temporários e bibliotecas.
-15. Opcionalmente executa o download rápido dos modelos via `--fast-models`.
-16. O `h-stats.sh` retorna atividade provisória durante bootstrap/download/model/prefetch para reduzir chance do HiveOS matar o custom miner por falta de status.
-17. O `h-run.sh` novo tenta manter a tela viva, imprimir diagnóstico e reiniciar se o processo cair.
-
-## Estrutura do pacote HiveOS
-
-```text
-keryx-miner/
-keryx-miner/h-manifest.conf
-keryx-miner/h-config.sh
-keryx-miner/h-run
-keryx-miner/h-run.sh
-keryx-miner/h-stats.sh
-keryx-miner/keryx-bootstrap.sh
-keryx-miner/keryx-miner
-```
+7. Não usa mais o asset antigo `hiveosv5`, que retornava 404.
+8. Descobre o pacote real automaticamente no release oficial `Keryx-Labs/keryx-miner`.
+9. Prioriza `sm86` para RTX 30xx/40xx.
+10. Baixa e valida pacote `.tar.gz`, `.tgz` ou `.zip`.
+11. Extrai em área temporária antes de copiar para a pasta final.
+12. Preserva os scripts corrigidos do HiveOS quando extrai o pacote original.
+13. Detecta se o binário real veio como ELF chamado `keryx-miner` e renomeia para `keryx-miner.bin`.
+14. Recria o wrapper `keryx-miner` para chamar o binário real.
+15. Ajusta permissões de execução automaticamente.
+16. Cria diretórios de cache/modelos/logs.
+17. Configura variáveis de ambiente do Keryx, cache, temporários e bibliotecas.
+18. Opcionalmente executa o download rápido dos modelos via `--fast-models`.
+19. O `h-stats.sh` retorna atividade provisória durante bootstrap/download/model/prefetch para reduzir chance do HiveOS matar o custom miner por falta de status.
+20. O `h-run.sh` novo tenta manter a tela viva, imprimir diagnóstico e reiniciar se o processo cair.
 
 ## Logs no HiveOS
 
