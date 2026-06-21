@@ -21,6 +21,29 @@ log() {
   echo "$(date -Is) [KERYX-HIVEOS] $*" | tee -a "$CUSTOM_LOG_BASENAME.log"
 }
 
+send_hive_message() {
+  msg="$*"
+  log "AVISO PARA O USUARIO: $msg"
+
+  for cmd in message sendmessage send_message hive-sendmsg hive-send-message; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      "$cmd" "$msg" >/dev/null 2>&1 || true
+    fi
+  done
+
+  [ -x /hive/bin/message ] && /hive/bin/message "$msg" >/dev/null 2>&1 || true
+  [ -x /hive/sbin/message ] && /hive/sbin/message "$msg" >/dev/null 2>&1 || true
+}
+
+notify_old_kernel_once() {
+  marker="/tmp/keryx-old-kernel-docker-message.sent"
+  [ -f "$marker" ] && return 0
+
+  msg="Keryx Miner: este HiveOS esta com kernel $(uname -r), inferior a 6.6. Recomendo atualizar o HiveOS/kernel. Enquanto isso, o Keryx vai rodar em container Ubuntu 22.04; o sistema tentara instalar wget, ca-certificates e Docker se necessario."
+  send_hive_message "$msg"
+  date -Is > "$marker" 2>/dev/null || true
+}
+
 show_diag() {
   log "===== DIAGNOSTICO RAPIDO ====="
   log "PWD=$(pwd)"
@@ -125,29 +148,38 @@ prepare_config() {
 
 kernel_requires_docker() {
   krel="$(uname -r 2>/dev/null || echo '')"
-  kver="$(uname -v 2>/dev/null || echo '')"
-
   major="$(printf '%s\n' "$krel" | sed -E 's/^([0-9]+).*/\1/')"
   minor="$(printf '%s\n' "$krel" | sed -E 's/^[0-9]+\.([0-9]+).*/\1/')"
-  patch="$(printf '%s\n' "$krel" | sed -E 's/^[0-9]+\.[0-9]+\.([0-9]+).*/\1/')"
-  build="$(printf '%s\n' "$kver" | grep -Eo '#[0-9]+' | head -n1 | tr -d '#')"
 
   case "$major" in ''|*[!0-9]*) major=0 ;; esac
   case "$minor" in ''|*[!0-9]*) minor=0 ;; esac
-  case "$patch" in ''|*[!0-9]*) patch=0 ;; esac
-  case "$build" in ''|*[!0-9]*) build=0 ;; esac
 
   [ "$major" -lt 6 ] && return 0
   [ "$major" -gt 6 ] && return 1
   [ "$minor" -lt 6 ] && return 0
-  [ "$minor" -gt 6 ] && return 1
-  [ "$patch" -lt 0 ] && return 0
-  [ "$patch" -gt 0 ] && return 1
-  [ "$build" -lt 60 ] && return 0
   return 1
 }
 
+ensure_host_deps() {
+  marker="/tmp/keryx-host-deps-installed.sent"
+  [ -f "$marker" ] && return 0
+
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    log "Instalando dependencias base no host: wget ca-certificates"
+    apt-get update 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    apt-get install -y wget ca-certificates 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    date -Is > "$marker" 2>/dev/null || true
+  else
+    log "AVISO: apt-get nao encontrado no host; nao foi possivel instalar wget/ca-certificates."
+  fi
+
+  return 0
+}
+
 ensure_docker() {
+  ensure_host_deps
+
   if ! command -v docker >/dev/null 2>&1; then
     log "Docker nao encontrado; tentando instalar docker.io"
     if command -v apt-get >/dev/null 2>&1; then
@@ -182,7 +214,7 @@ ensure_docker_image() {
   cat > "$DIR/tmp/Dockerfile.keryx" <<'DOCKERFILE'
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 libstdc++6 libgcc-s1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates libssl3 libstdc++6 libgcc-s1 && update-ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /miners
 DOCKERFILE
 
@@ -208,7 +240,8 @@ run_miner_docker() {
   image="keryx-hiveos-ubuntu22:22.04"
   cname="keryx-miner-${HOSTNAME:-hive}"
 
-  log "Kernel inferior a 6.6.0-hiveos #60 detectado: $(uname -r) $(uname -v)"
+  notify_old_kernel_once
+  log "Kernel inferior a 6.6 detectado: $(uname -r) $(uname -v)"
   log "Usando Docker Ubuntu 22.04 na mesma screen do HiveOS."
 
   ensure_docker || return 31
