@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -x "$DIR/keryx-miner.bin" ]; then
+  "$DIR/keryx-bootstrap.sh"
+fi
+exec "$DIR/keryx-miner.bin" "$@"
