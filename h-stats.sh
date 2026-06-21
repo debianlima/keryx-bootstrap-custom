@@ -11,15 +11,21 @@ MANIFEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/h-manifest.conf"
 . "$MANIFEST" 2>/dev/null || true
 
 LOG="${CUSTOM_LOG_BASENAME:-/var/log/miner/keryx-miner}.log"
-VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v20}"
+VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v21}"
 ALGO="${CUSTOM_ALGO:-blake3-alph}"
 now="$(date +%s)"
 
 gpu_count=0
-if command -v jq >/dev/null 2>&1 && [ -n "${GPU_STATS_JSON:-}" ] && [ -f "$GPU_STATS_JSON" ]; then
+if [ -f "$LOG" ]; then
+  gpu_count="$(grep -Eo 'Device #[0-9]+' "$LOG" | tail -n 80 | sed 's/[^0-9]//g' | sort -n | uniq | wc -l | tr -d ' ')"
+fi
+case "$gpu_count" in ''|*[!0-9]*) gpu_count=0 ;; esac
+
+if [ "$gpu_count" -lt 1 ] && command -v jq >/dev/null 2>&1 && [ -n "${GPU_STATS_JSON:-}" ] && [ -f "$GPU_STATS_JSON" ]; then
   gpu_count="$(jq 'length' "$GPU_STATS_JSON" 2>/dev/null || echo 0)"
 fi
 case "$gpu_count" in ''|*[!0-9]*) gpu_count=0 ;; esac
+
 if [ "$gpu_count" -lt 1 ] && command -v nvidia-smi >/dev/null 2>&1; then
   gpu_count="$(nvidia-smi -L 2>/dev/null | grep -c '^GPU ' || echo 0)"
 fi
@@ -27,7 +33,7 @@ case "$gpu_count" in ''|*[!0-9]*) gpu_count=0 ;; esac
 [ "$gpu_count" -gt 0 ] || gpu_count=1
 
 total_value=0
-hs_units="ghs"
+hs_units="mhs"
 stats_raw=""
 diffTime=999999
 
@@ -38,29 +44,38 @@ line_diff() {
   [ "$ts" -gt 0 ] && echo $(( now - ts < 0 ? ts - now : now - ts )) || echo 999999
 }
 
-hash_to_ghs() {
-  awk -v v="$1" -v u="$2" 'BEGIN{gsub(/,/,".",v); gsub(/[[:space:]]/,"",u); u=toupper(u); m=1; if(u~/^P/)m=1000000; else if(u~/^T/)m=1000; else if(u~/^G/)m=1; else if(u~/^M/)m=0.001; else if(u~/^K/)m=0.000001; else m=0.000000001; printf "%.6f", v*m}'
+hash_to_mhs() {
+  awk -v v="$1" -v u="$2" 'BEGIN{gsub(/,/,".",v); gsub(/[[:space:]]/,"",u); u=toupper(u); m=1; if(u~/^P/)m=1000000000; else if(u~/^T/)m=1000000; else if(u~/^G/)m=1000; else if(u~/^M/)m=1; else if(u~/^K/)m=0.001; else m=0.000001; printf "%.6f", v*m}'
 }
 
-extract_hash_match() {
-  printf '%s\n' "$1" | grep -Eio '[0-9]+([\.,][0-9]+)?[[:space:]]*[KMGTPE]?[[:space:]]*(H/s|Hash/s|Hashes/s|hash/s|hashes/s)' | tail -n 1
+parse_hash_line() {
+  line="$1"
+  m="$(printf '%s\n' "$line" | grep -Eio '[0-9]+([\.,][0-9]+)?[[:space:]]*[KMGTPE]?[[:space:]]*(H/s|Hash/s|Hashes/s|hash/s|hashes/s)' | tail -n 1)"
+  [ -n "$m" ] || return 1
+  val="$(printf '%s\n' "$m" | grep -Eo '[0-9]+([\.,][0-9]+)?' | head -n 1)"
+  unit="$(printf '%s\n' "$m" | sed -E 's/^[0-9]+([\.,][0-9]+)?[[:space:]]*//; s/[[:space:]]//g')"
+  [ -n "$val" ] || return 1
+  total_value="$(hash_to_mhs "$val" "$unit")"
+  hs_units="mhs"
+  stats_raw="$line"
+  diffTime="$(line_diff "$line")"
+  return 0
 }
 
 if [ -f "$LOG" ]; then
-  while IFS= read -r line; do
-    m="$(extract_hash_match "$line")"
-    [ -n "$m" ] || continue
-    val="$(printf '%s\n' "$m" | grep -Eo '[0-9]+([\.,][0-9]+)?' | head -n 1)"
-    unit="$(printf '%s\n' "$m" | sed -E 's/^[0-9]+([\.,][0-9]+)?[[:space:]]*//; s/[[:space:]]//g')"
-    [ -n "$val" ] || continue
-    total_value="$(hash_to_ghs "$val" "$unit")"
-    hs_units="ghs"
-    stats_raw="$line"
-    diffTime="$(line_diff "$line")"
-    break
-  done <<EOF
-$(grep -Ei 'hashrate|hash rate|speed|GH/s|GHash/s|Ghash/s|MH/s|MHash/s|KH/s|KHash/s|TH/s|THash/s' "$LOG" | tail -n 120 | tac)
-EOF
+  current_line="$(grep -Ei 'Current hashrate is|Current hashrate:' "$LOG" | tail -n 1)"
+  if [ -n "$current_line" ]; then
+    parse_hash_line "$current_line"
+  fi
+fi
+
+if [ "$total_value" = "0" ] && [ -f "$LOG" ]; then
+  last_device_line="$(grep -Ei 'Device #[0-9]+.*(H/s|Hash/s|hash/s|Mhash/s|Ghash/s|T/hash)' "$LOG" | tail -n 1)"
+  if [ -n "$last_device_line" ]; then
+    parse_hash_line "$last_device_line"
+    total_value="$(awk -v per="$total_value" -v n="$gpu_count" 'BEGIN{printf "%.6f", per*n}')"
+    stats_raw="SOMADO por GPU: $last_device_line"
+  fi
 fi
 
 if [ "$total_value" = "0" ] && [ -f "$LOG" ]; then
