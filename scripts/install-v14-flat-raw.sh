@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "$(id -u)" -ne 0 ]; then
+  echo "[KERYX-INSTALL] Este instalador precisa de root. Reexecutando com sudo..."
+  exec sudo -E bash "$0" "$@"
+fi
+
 miner stop 2>/dev/null || true
 sleep 3
 screen -wipe || true
 
+mkdir -p /hive/miners/custom
 cd /hive/miners/custom
 
 BK="/hive/miners/custom/_bkp_keryx_$(date +%F_%H%M%S)"
