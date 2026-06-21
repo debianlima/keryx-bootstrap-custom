@@ -6,8 +6,8 @@ MANIFEST="/hive/miners/custom/keryx-miner/h-manifest.conf"
 . "$MANIFEST" 2>/dev/null || true
 
 LOG="${CUSTOM_LOG_BASENAME:-/var/log/miner/keryx-miner}.log"
-VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v6}"
-ALGO="heavyhash"
+VERSION="${CUSTOM_VERSION:-0.3.2-OPoI-bootstrap-v7}"
+ALGO="blake3-alph"
 now="$(date +%s)"
 khs=0
 stats="null"
@@ -26,7 +26,7 @@ line_diff() {
 }
 
 if [ -f "$LOG" ]; then
-  stats_raw="$(grep -Ei 'Current hashrate is|Current hashrate:|Total hashrate' "$LOG" | tail -n 1)"
+  stats_raw="$(grep -Ei 'Current hashrate is|Current hashrate:|Total hashrate|hashrate' "$LOG" | tail -n 1)"
 fi
 
 if [ -n "$stats_raw" ]; then
@@ -37,7 +37,7 @@ if [ -n "$stats_raw" ]; then
 fi
 
 if [ "$khs" = "0" ] && [ -f "$LOG" ]; then
-  alive_raw="$(grep -Ei 'KERYX-BOOTSTRAP|KERYX-HIVEOS|download|downloading|prefetch|model|loading|inference|starting|iniciando|baixando' "$LOG" | tail -n 1)"
+  alive_raw="$(grep -Ei 'KERYX-BOOTSTRAP|KERYX-HIVEOS|download|downloading|prefetch|model|loading|inference|starting|iniciando|baixando|bootstrap|fast-models|huggingface' "$LOG" | tail -n 1)"
   if [ -n "$alive_raw" ]; then
     alive_diff="$(line_diff "$alive_raw")"
     if [ "$alive_diff" -lt 900 ]; then khs=1; diffTime="$alive_diff"; stats_raw="$alive_raw"; fi
