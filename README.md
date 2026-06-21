@@ -102,6 +102,10 @@ Extra config arguments: --light
 
 Coloque sua wallet no campo Wallet and worker template.
 
+### Exemplo visual no HiveOS
+
+![Exemplo de configuracao Custom Miner no HiveOS](docs/images/hiveos-custom-config-v24.svg)
+
 ## Instalacao manual de recuperacao
 
 Use este comando quando o minerador nao iniciar, quando o HiveOS nao criar a pasta `/hive/miners/custom`, ou quando a pasta `custom` tiver sido apagada:
