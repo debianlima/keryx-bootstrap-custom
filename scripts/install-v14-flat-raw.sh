@@ -25,5 +25,7 @@ chmod 755 h-run h-run.sh h-config.sh h-stats.sh keryx-bootstrap.sh keryx-miner
 
 : > /var/log/miner/keryx-miner.log
 
-echo "===== TESTE MINER-RUN CUSTOM ====="
-miner-run custom 3 2>&1 | tee /tmp/keryx-miner-run-test.log
+echo "===== KERYX V14 INSTALADO ====="
+echo "Backup: $BK"
+echo "Agora rode: miner-run custom 3"
+echo "Se o teste direto funcionar, pare com Ctrl+C e depois rode: miner start"
