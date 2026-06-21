@@ -27,5 +27,16 @@ chmod 755 h-run h-run.sh h-config.sh h-stats.sh keryx-bootstrap.sh keryx-miner
 
 echo "===== KERYX V14 INSTALADO ====="
 echo "Backup: $BK"
-echo "Agora rode: miner-run custom 3"
-echo "Se o teste direto funcionar, pare com Ctrl+C e depois rode: miner start"
+echo "Iniciando pelo fluxo normal do HiveOS: miner start"
+
+miner start
+sleep 8
+
+echo "===== PROCESSOS ====="
+ps -ef | grep -E 'keryx|h-run|custom' | grep -v grep || true
+
+echo "===== LOG KERYX ====="
+tail -120 /var/log/miner/keryx-miner.log || true
+
+echo "===== SCREENS ====="
+screen -ls || true
