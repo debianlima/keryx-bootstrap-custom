@@ -18,6 +18,41 @@ Mudancas principais:
 - Mantem o modo Docker para kernel inferior a 6.6 e o aviso ao usuario.
 - Mantem h-stats no padrao HiveOS com hs_units khs.
 
+## Destaque: modo de compatibilidade HiveOS kernel 6.1.0
+
+Este pacote tem modo de compatibilidade para rigs HiveOS antigas, principalmente rigs com kernel 6.1.0-hiveos.
+
+Quando o kernel for inferior a 6.6, o h-run.sh muda automaticamente para execucao em container Ubuntu 22.04. Isso evita erro de biblioteca/GLIBC em imagens antigas do HiveOS sem obrigar troca imediata da imagem do sistema.
+
+O que acontece automaticamente no modo compatibilidade:
+
+- envia aviso ao usuario recomendando atualizar o HiveOS/kernel;
+- informa que o Keryx vai rodar em container Ubuntu 22.04;
+- tenta instalar wget e ca-certificates no host;
+- tenta instalar e iniciar Docker se necessario;
+- cria a imagem local keryx-hiveos-ubuntu22:22.04;
+- monta /hive/miners/custom dentro do container como /miners;
+- mantem a execucao dentro da screen padrao do HiveOS;
+- mantem o log em /var/log/miner/keryx-miner.log;
+- mantem o h-stats.sh alimentando a API de monitoramento do HiveOS.
+
+Resumo:
+
+```text
+Kernel 6.6 ou superior  -> roda nativo no HiveOS
+Kernel inferior a 6.6   -> roda em container Ubuntu 22.04
+Kernel 6.1.0-hiveos    -> modo compatibilidade ativado automaticamente
+```
+
+Dependencias instaladas no host quando necessario:
+
+```bash
+apt-get update
+apt-get install -y wget ca-certificates
+```
+
+Observacao: o modo Docker precisa que o Docker consiga acessar as GPUs com --gpus all. Se o runtime NVIDIA do Docker nao estiver disponivel, o erro aparece no log e o loop do minerador continua tentando.
+
 ## Release
 
 URL direta esperada do asset v24:
