@@ -6,75 +6,52 @@ if [ "$(id -u)" -ne 0 ]; then
   exec sudo -E bash "$0" "$@"
 fi
 
-TARGET="/hive/bin/miner-run"
-ORIG="/hive/bin/miner-run.hiveos-original"
-WRAP="/hive/bin/miner-run.keryx-wrapper"
-
-if [ ! -f "$TARGET" ]; then
-  echo "[KERYX-PATCH] ERRO: $TARGET nao encontrado"
-  exit 1
-fi
-
-if grep -q 'KERYX_AUTO_INSTALL_WRAPPER' "$TARGET" 2>/dev/null; then
-  echo "[KERYX-PATCH] Wrapper ja esta ativo em $TARGET"
-  exit 0
-fi
-
-if [ ! -f "$ORIG" ]; then
-  cp -a "$TARGET" "$ORIG"
-fi
-
-cat > "$WRAP" <<'EOF'
-#!/usr/bin/env bash
-# KERYX_AUTO_INSTALL_WRAPPER
-set +e
-
-ORIG="/hive/bin/miner-run.hiveos-original"
+COMMON="/hive/bin/keryx-auto-install-common.sh"
+MINER_TARGET="/hive/bin/miner"
+MINER_ORIG="/hive/bin/miner.hiveos-original"
+MINERRUN_TARGET="/hive/bin/miner-run"
+MINERRUN_ORIG="/hive/bin/miner-run.hiveos-original"
 LOG="/var/log/miner/keryx-auto-install.log"
 
-log() {
+for f in "$MINER_TARGET" "$MINERRUN_TARGET"; do
+  if [ ! -f "$f" ]; then
+    echo "[KERYX-PATCH] ERRO: $f nao encontrado"
+    exit 1
+  fi
+done
+
+cat > "$COMMON" <<'EOF'
+#!/usr/bin/env bash
+# KERYX_AUTO_INSTALL_COMMON
+
+KERYX_AUTO_LOG="/var/log/miner/keryx-auto-install.log"
+
+keryx_log() {
   mkdir -p /var/log/miner 2>/dev/null || true
-  echo "$(date -Is) [KERYX-AUTO-INSTALL] $*" >> "$LOG"
+  echo "$(date -Is) [KERYX-AUTO-INSTALL] $*" >> "$KERYX_AUTO_LOG"
 }
 
-install_custom_if_needed() {
-  [ "${1:-}" = "custom" ] || return 0
+keryx_custom_files_ok() {
+  [ -f /hive/miners/custom/h-manifest.conf ] && \
+  [ -f /hive/miners/custom/h-config.sh ] && \
+  [ -f /hive/miners/custom/h-run.sh ]
+}
 
-  if [ -f /hive/miners/custom/h-manifest.conf ] && \
-     [ -f /hive/miners/custom/h-config.sh ] && \
-     [ -f /hive/miners/custom/h-run.sh ]; then
-    return 0
-  fi
-
+keryx_load_hive_config() {
   [ -f /hive-config/rig.conf ] && . /hive-config/rig.conf 2>/dev/null || true
   [ -f /hive-config/wallet.conf ] && . /hive-config/wallet.conf 2>/dev/null || true
+}
 
-  URL="${CUSTOM_INSTALL_URL:-}"
-  if [ -z "$URL" ]; then
-    log "CUSTOM_INSTALL_URL vazio; nao ha como baixar custom miner"
-    return 0
-  fi
+keryx_custom_enabled_in_rig() {
+  keryx_load_hive_config
+  [ "${MINER:-}" = "custom" ] || \
+  [ "${MINER2:-}" = "custom" ] || \
+  [ "${MINER3:-}" = "custom" ] || \
+  [ "${MINER4:-}" = "custom" ] || \
+  [ "${MINER5:-}" = "custom" ]
+}
 
-  log "custom ausente/incompleto; baixando $URL"
-
-  rm -rf /tmp/keryx-custom-install
-  mkdir -p /tmp/keryx-custom-install /hive/miners/custom
-
-  if ! wget -qO /tmp/keryx-custom-install/custom.tar.gz "$URL"; then
-    log "ERRO: wget falhou em $URL"
-    return 0
-  fi
-
-  if ! gzip -t /tmp/keryx-custom-install/custom.tar.gz >/dev/null 2>&1; then
-    log "ERRO: pacote nao passou no gzip -t"
-    return 0
-  fi
-
-  if ! tar -xzf /tmp/keryx-custom-install/custom.tar.gz -C /tmp/keryx-custom-install; then
-    log "ERRO: tar falhou"
-    return 0
-  fi
-
+keryx_copy_extracted_tree() {
   # Formato 1: arquivos direto na raiz do pacote
   if [ -f /tmp/keryx-custom-install/h-manifest.conf ]; then
     cp -af /tmp/keryx-custom-install/. /hive/miners/custom/
@@ -89,6 +66,42 @@ install_custom_if_needed() {
   if [ -n "${CUSTOM_MINER:-}" ] && [ -f "/tmp/keryx-custom-install/$CUSTOM_MINER/h-manifest.conf" ]; then
     cp -af "/tmp/keryx-custom-install/$CUSTOM_MINER/." /hive/miners/custom/
   fi
+}
+
+keryx_install_custom_if_needed() {
+  keryx_load_hive_config
+
+  if keryx_custom_files_ok; then
+    return 0
+  fi
+
+  URL="${CUSTOM_INSTALL_URL:-}"
+  if [ -z "$URL" ]; then
+    keryx_log "CUSTOM_INSTALL_URL vazio; nao ha como baixar custom miner"
+    return 0
+  fi
+
+  keryx_log "custom ausente/incompleto; baixando $URL"
+
+  rm -rf /tmp/keryx-custom-install
+  mkdir -p /tmp/keryx-custom-install /hive/miners/custom
+
+  if ! wget -qO /tmp/keryx-custom-install/custom.tar.gz "$URL"; then
+    keryx_log "ERRO: wget falhou em $URL"
+    return 0
+  fi
+
+  if ! gzip -t /tmp/keryx-custom-install/custom.tar.gz >/dev/null 2>&1; then
+    keryx_log "ERRO: pacote nao passou no gzip -t"
+    return 0
+  fi
+
+  if ! tar -xzf /tmp/keryx-custom-install/custom.tar.gz -C /tmp/keryx-custom-install; then
+    keryx_log "ERRO: tar falhou"
+    return 0
+  fi
+
+  keryx_copy_extracted_tree
 
   chmod 755 /hive/miners/custom/h-run \
             /hive/miners/custom/h-run.sh \
@@ -98,23 +111,77 @@ install_custom_if_needed() {
             /hive/miners/custom/keryx-miner 2>/dev/null || true
   [ -f /hive/miners/custom/keryx-miner.bin ] && chmod 755 /hive/miners/custom/keryx-miner.bin || true
 
-  if [ -f /hive/miners/custom/h-manifest.conf ] && \
-     [ -f /hive/miners/custom/h-config.sh ] && \
-     [ -f /hive/miners/custom/h-run.sh ]; then
-    log "custom miner instalado automaticamente em /hive/miners/custom"
+  if keryx_custom_files_ok; then
+    keryx_log "custom miner instalado automaticamente em /hive/miners/custom"
   else
-    log "ERRO: pacote extraido mas arquivos obrigatorios nao apareceram em /hive/miners/custom"
+    keryx_log "ERRO: pacote extraido mas arquivos obrigatorios nao apareceram em /hive/miners/custom"
   fi
 }
+EOF
 
-install_custom_if_needed "$@"
+chmod 755 "$COMMON"
+
+if [ ! -f "$MINER_ORIG" ] && ! grep -q 'KERYX_AUTO_INSTALL_MINER_WRAPPER' "$MINER_TARGET" 2>/dev/null; then
+  cp -a "$MINER_TARGET" "$MINER_ORIG"
+fi
+
+cat > /hive/bin/miner.keryx-wrapper <<'EOF'
+#!/usr/bin/env bash
+# KERYX_AUTO_INSTALL_MINER_WRAPPER
+set +e
+ORIG="/hive/bin/miner.hiveos-original"
+COMMON="/hive/bin/keryx-auto-install-common.sh"
+
+[ -f "$COMMON" ] && . "$COMMON"
+
+cmd="${1:-}"
+case "$cmd" in
+  start|restart|"")
+    if type keryx_custom_enabled_in_rig >/dev/null 2>&1 && keryx_custom_enabled_in_rig; then
+      keryx_install_custom_if_needed
+    fi
+    ;;
+esac
 
 exec "$ORIG" "$@"
 EOF
 
-chmod 755 "$WRAP"
-cp -a "$WRAP" "$TARGET"
+chmod 755 /hive/bin/miner.keryx-wrapper
+cp -a /hive/bin/miner.keryx-wrapper "$MINER_TARGET"
 
-echo "[KERYX-PATCH] OK: /hive/bin/miner-run agora reinstala o Custom Miner automaticamente se /hive/miners/custom estiver ausente/incompleto."
-echo "[KERYX-PATCH] Backup original: $ORIG"
-echo "[KERYX-PATCH] Log: /var/log/miner/keryx-auto-install.log"
+if [ ! -f "$MINERRUN_ORIG" ] && ! grep -q 'KERYX_AUTO_INSTALL_MINERRUN_WRAPPER' "$MINERRUN_TARGET" 2>/dev/null; then
+  cp -a "$MINERRUN_TARGET" "$MINERRUN_ORIG"
+fi
+
+cat > /hive/bin/miner-run.keryx-wrapper <<'EOF'
+#!/usr/bin/env bash
+# KERYX_AUTO_INSTALL_MINERRUN_WRAPPER
+set +e
+ORIG="/hive/bin/miner-run.hiveos-original"
+COMMON="/hive/bin/keryx-auto-install-common.sh"
+
+[ -f "$COMMON" ] && . "$COMMON"
+
+if [ "${1:-}" = "custom" ]; then
+  if type keryx_install_custom_if_needed >/dev/null 2>&1; then
+    keryx_install_custom_if_needed
+  fi
+fi
+
+exec "$ORIG" "$@"
+EOF
+
+chmod 755 /hive/bin/miner-run.keryx-wrapper
+cp -a /hive/bin/miner-run.keryx-wrapper "$MINERRUN_TARGET"
+
+mkdir -p /var/log/miner
+{
+  echo "$(date -Is) [KERYX-PATCH] patch aplicado em /hive/bin/miner e /hive/bin/miner-run"
+  echo "$(date -Is) [KERYX-PATCH] backups: $MINER_ORIG e $MINERRUN_ORIG"
+} >> "$LOG"
+
+echo "[KERYX-PATCH] OK: /hive/bin/miner e /hive/bin/miner-run agora tentam reinstalar o Custom Miner automaticamente."
+echo "[KERYX-PATCH] Backups:"
+echo "  $MINER_ORIG"
+echo "  $MINERRUN_ORIG"
+echo "[KERYX-PATCH] Log: $LOG"
