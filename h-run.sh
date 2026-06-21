@@ -4,6 +4,16 @@ set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR" || exit 1
 
+load_hiveos_flight_sheet() {
+  [ -f /hive-config/rig.conf ] && . /hive-config/rig.conf 2>/dev/null || true
+  [ -f /hive-config/wallet.conf ] && . /hive-config/wallet.conf 2>/dev/null || true
+}
+
+# Leitura direta do Flight Sheet antes do manifest. Assim, mesmo se o wrapper
+# for chamado fora do miner-run, CUSTOM_URL/CUSTOM_TEMPLATE/CUSTOM_USER_CONFIG
+# entram corretamente na config do executavel real.
+load_hiveos_flight_sheet
+
 [ -t 1 ] && [ -f colors ] && . colors || true
 . ./h-manifest.conf
 
@@ -20,6 +30,10 @@ show_diag() {
   log "DIR=$DIR"
   log "CUSTOM_CONFIG_FILENAME=${CUSTOM_CONFIG_FILENAME:-}"
   log "CUSTOM_LOG_BASENAME=${CUSTOM_LOG_BASENAME:-}"
+  log "CUSTOM_URL=${CUSTOM_URL:-}"
+  log "CUSTOM_TEMPLATE=${CUSTOM_TEMPLATE:-}"
+  log "CUSTOM_USER_CONFIG=${CUSTOM_USER_CONFIG:-}"
+  log "CUSTOM_ALGO=${CUSTOM_ALGO:-}"
   log "Arquivos principais:"
   ls -la "$DIR"/h-run "$DIR"/h-run.sh "$DIR"/h-config.sh "$DIR"/h-stats.sh "$DIR"/keryx-bootstrap.sh "$DIR"/keryx-miner "$DIR"/keryx-miner.bin 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log" || true
   log "config.ini:"
@@ -82,6 +96,7 @@ run_fast_models_download() {
 }
 
 prepare_config() {
+  load_hiveos_flight_sheet
   log "gerando config.ini a partir do Flight Sheet/defaults"
   "$DIR/h-config.sh" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
   rc=${PIPESTATUS[0]}
