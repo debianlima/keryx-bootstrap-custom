@@ -2,9 +2,40 @@
 
 Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner, direto pelo Flight Sheet, sem comando manual no rig.
 
-## URL para colocar no HiveOS
+## Status atual
 
-Use esta URL no campo **Custom Miner Install URL / Custom URL** do Flight Sheet:
+Versão recomendada: **v9**.
+
+O pacote **v9** foi testado no rig com:
+
+```bash
+gzip -t /tmp/keryx-v9.tar.gz
+tar -tzf /tmp/keryx-v9.tar.gz | head -50
+```
+
+Resultado esperado e confirmado:
+
+```text
+OK_GZIP
+keryx-miner/
+keryx-miner/h-config.sh
+keryx-miner/h-manifest.conf
+keryx-miner/h-run
+keryx-miner/h-run.sh
+keryx-miner/h-stats.sh
+keryx-miner/keryx-bootstrap.sh
+keryx-miner/keryx-miner
+```
+
+## URL recomendada para colocar no HiveOS
+
+Use a URL **versionada v9** no campo **Custom Miner Install URL / Installation URL** do Flight Sheet:
+
+```text
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz
+```
+
+A URL `latest` também existe, mas para evitar cache do GitHub/CDN durante testes, prefira a v9:
 
 ```text
 https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
@@ -23,7 +54,7 @@ Miner name:
 keryx-miner
 
 Installation URL:
-https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-latest.tar.gz
+https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz
 
 Hash algorithm:
 blake3-alph
@@ -71,6 +102,39 @@ Para desabilitar explicitamente:
 
 Essas opções são consumidas pelo wrapper local e não são repassadas ao binário Keryx.
 
+## Correção importante da v9
+
+As versões anteriores do pacote `.tar.gz` chegaram a baixar com HTTP 200, mas falhavam no teste:
+
+```text
+gzip: invalid compressed data--crc error
+gzip: invalid compressed data--length error
+gzip: invalid compressed data--format violated
+```
+
+Quando isso acontece, o HiveOS não consegue extrair o pacote e a pasta abaixo não é criada:
+
+```text
+/hive/miners/custom/keryx-miner
+```
+
+Sintoma observado:
+
+```text
+No miner screens found
+ls: cannot access '/hive/miners/custom/keryx-miner': No such file or directory
+```
+
+A v9 foi recriada para corrigir isso. Antes de aplicar no Flight Sheet, pode validar no rig com:
+
+```bash
+URL='https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/dist/keryx-bootstrap-custom-hiveos-v9.tar.gz'
+rm -f /tmp/keryx-v9.tar.gz
+wget -O /tmp/keryx-v9.tar.gz "$URL"
+gzip -t /tmp/keryx-v9.tar.gz && echo OK_GZIP
+tar -tzf /tmp/keryx-v9.tar.gz | head -50
+```
+
 ## O que esta versão corrige no HiveOS
 
 ```text
@@ -109,6 +173,7 @@ Correções aplicadas:
 14. Configura variáveis de ambiente do Keryx, cache, temporários e bibliotecas.
 15. Opcionalmente executa o download rápido dos modelos via `--fast-models`.
 16. O `h-stats.sh` retorna atividade provisória durante bootstrap/download/model/prefetch para reduzir chance do HiveOS matar o custom miner por falta de status.
+17. O `h-run.sh` novo tenta manter a tela viva, imprimir diagnóstico e reiniciar se o processo cair.
 
 ## Estrutura do pacote HiveOS
 
@@ -116,8 +181,8 @@ Correções aplicadas:
 keryx-miner/
 keryx-miner/h-manifest.conf
 keryx-miner/h-config.sh
-keryx-miner/h-run.sh
 keryx-miner/h-run
+keryx-miner/h-run.sh
 keryx-miner/h-stats.sh
 keryx-miner/keryx-bootstrap.sh
 keryx-miner/keryx-miner
@@ -127,4 +192,10 @@ keryx-miner/keryx-miner
 
 ```text
 /var/log/miner/keryx-miner.log
+```
+
+Diagnóstico extra, quando houver falha:
+
+```text
+/var/log/miner/keryx-miner.diag.log
 ```
