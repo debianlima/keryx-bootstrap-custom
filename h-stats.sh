@@ -27,8 +27,8 @@ hash_to_khs() {
     gsub(/[[:space:]]/,"",u)
     u=toupper(u)
     m=1
-    if(u~/^P/)m=1000000000
-    else if(u~/^T/)m=1000000
+    if(u~/^P/)m=1000000000000
+    else if(u~/^T/)m=1000000000
     else if(u~/^G/)m=1000000
     else if(u~/^M/)m=1000
     else if(u~/^K/)m=1
