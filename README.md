@@ -4,9 +4,11 @@ Bootstrap para rodar o Keryx Miner no HiveOS como **Custom Miner**, direto pelo 
 
 ## Status atual
 
-Versão atual documentada: **v16-auto-install**.
+Versão atual documentada: **v17-auto-install**.
 
-O pacote do Custom Miner continua sendo usado no campo **Installation URL** do HiveOS. A correção nova da v16 adiciona também um patch opcional para o `/hive/bin/miner-run`, porque em alguns rigs o HiveOS não baixa a Release automaticamente quando a pasta `/hive/miners/custom` foi apagada.
+O pacote do Custom Miner continua sendo usado no campo **Installation URL** do HiveOS. A correção nova da v17 atualiza o patch de auto-instalação para cobrir **dois pontos do HiveOS**: `/hive/bin/miner` e `/hive/bin/miner-run`.
+
+Isso foi necessário porque em alguns rigs o HiveOS não baixa a Release automaticamente quando a pasta `/hive/miners/custom` foi apagada. O wrapper no `miner` tenta instalar antes de criar a screen, e o wrapper no `miner-run` tenta instalar antes de executar o custom.
 
 ## Release correta
 
@@ -16,13 +18,19 @@ Página visual da Release:
 https://github.com/debianlima/keryx-bootstrap-custom/releases/tag/bootstrap
 ```
 
-URL direta esperada do novo asset v16 para colocar no **Custom Miner Install URL / Installation URL** do HiveOS:
+URL direta esperada do novo asset v17 para colocar no **Custom Miner Install URL / Installation URL** do HiveOS:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v16-autoinstall.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v17-autoinstall.tar.gz
 ```
 
 Importante: no HiveOS, use a URL `/releases/download/...tar.gz`, não a página `/releases/tag/...`.
+
+SHA256 do pacote v17:
+
+```text
+65dc2ab4682dec225812446d24fa468f7ccbcf770481100d31ca80b885491839
+```
 
 ## Problema confirmado no HiveOS
 
@@ -41,19 +49,28 @@ miner start
 
 Ou seja: quando a pasta `custom` já existe, funciona. Quando ela foi apagada, alguns rigs não disparam o download do `CUSTOM_INSTALL_URL` sozinhos.
 
-## Correção v16
+## Correção v17
 
-A v16 mantém os scripts funcionais do minerador e adiciona:
+A v17 mantém os scripts funcionais do minerador e atualiza:
 
 ```text
 scripts/patch-hiveos-miner-run-auto-install.sh
 ```
 
-Esse patch cria um wrapper em `/hive/bin/miner-run`. Quando o HiveOS chamar `miner-run custom`, o wrapper verifica se `/hive/miners/custom` está ausente/incompleto. Se estiver, ele baixa o pacote definido em `CUSTOM_INSTALL_URL`, extrai em `/hive/miners/custom` e depois chama o `miner-run` original.
-
-Backup criado pelo patch:
+Esse patch cria:
 
 ```text
+/hive/bin/keryx-auto-install-common.sh
+/hive/bin/miner.keryx-wrapper
+/hive/bin/miner-run.keryx-wrapper
+```
+
+O wrapper do `/hive/bin/miner` verifica se o Flight Sheet usa `custom` antes do `miner start` criar a screen. O wrapper do `/hive/bin/miner-run` verifica de novo quando o HiveOS chama `miner-run custom`. Se `/hive/miners/custom` estiver ausente/incompleto, ele baixa o pacote definido em `CUSTOM_INSTALL_URL`, extrai em `/hive/miners/custom` e depois chama o binário original.
+
+Backups criados pelo patch:
+
+```text
+/hive/bin/miner.hiveos-original
 /hive/bin/miner-run.hiveos-original
 ```
 
@@ -71,10 +88,10 @@ No Flight Sheet do HiveOS:
 Miner: Custom
 
 Miner name:
-keryx-bootstrap-custom-hiveos-v16
+keryx-bootstrap-custom-hiveos-v17
 
 Installation URL:
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v16-autoinstall.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/bootstrap/keryx-bootstrap-custom-hiveos-v17-autoinstall.tar.gz
 
 Hash algorithm:
 blake3-alph
