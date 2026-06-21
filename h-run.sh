@@ -81,27 +81,7 @@ run_fast_models_download() {
   return 0
 }
 
-start_once() {
-  log "============================================================"
-  log "KERYX START LOOP: $(date -Is)"
-  log "Diretorio de execucao: $DIR"
-  log "============================================================"
-
-  if [ ! -x "$DIR/keryx-miner.bin" ]; then
-    log "binario keryx-miner.bin ausente; executando bootstrap"
-    "$DIR/keryx-bootstrap.sh" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
-    rc=${PIPESTATUS[0]}
-    if [ "$rc" -ne 0 ]; then
-      log "ERRO: keryx-bootstrap.sh falhou com codigo $rc"
-      return "$rc"
-    fi
-  fi
-
-  if [ ! -x "$DIR/keryx-miner.bin" ]; then
-    log "ERRO: keryx-miner.bin nao foi instalado apos bootstrap."
-    return 11
-  fi
-
+prepare_config() {
   log "gerando config.ini a partir do Flight Sheet/defaults"
   "$DIR/h-config.sh" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
   rc=${PIPESTATUS[0]}
@@ -124,6 +104,33 @@ start_once() {
     log "ERRO: config.ini nao contem pool -s."
     log "Conteudo atual do config.ini: $CONF"
     return 13
+  fi
+
+  export CONF
+  return 0
+}
+
+start_once() {
+  log "============================================================"
+  log "KERYX START LOOP: $(date -Is)"
+  log "Diretorio de execucao: $DIR"
+  log "============================================================"
+
+  prepare_config || return $?
+
+  if [ ! -x "$DIR/keryx-miner.bin" ]; then
+    log "binario keryx-miner.bin ausente; executando bootstrap"
+    "$DIR/keryx-bootstrap.sh" 2>&1 | tee -a "$CUSTOM_LOG_BASENAME.log"
+    rc=${PIPESTATUS[0]}
+    if [ "$rc" -ne 0 ]; then
+      log "ERRO: keryx-bootstrap.sh falhou com codigo $rc"
+      return "$rc"
+    fi
+  fi
+
+  if [ ! -x "$DIR/keryx-miner.bin" ]; then
+    log "ERRO: keryx-miner.bin nao foi instalado apos bootstrap."
+    return 11
   fi
 
   export KERYX_HOME="$DIR"
