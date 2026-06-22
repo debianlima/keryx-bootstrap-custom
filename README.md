@@ -41,12 +41,14 @@ Share accepted
 Leia nesta ordem:
 
 1. [`docs/HANDOFF-v1.1.md`](docs/HANDOFF-v1.1.md) - estado atual, arquitetura, pacote correto e comandos validados.
-2. [`docs/HEADNOTES-PER-FILE-v1.1.md`](docs/HEADNOTES-PER-FILE-v1.1.md) - headnotes por arquivo alterado/gerado, com motivo e cuidado de continuidade.
-3. [`docs/FILES-CHANGED-v1.1.md`](docs/FILES-CHANGED-v1.1.md) - inventario dos arquivos alterados, release assets e mudancas conceituais no fonte.
-4. [`docs/HIVEOS-OLLAMA-32B-SETUP.md`](docs/HIVEOS-OLLAMA-32B-SETUP.md) - instalacao completa em um rig HiveOS.
-5. [`docs/SECOND-RIG-REPLICATION-v1.1.md`](docs/SECOND-RIG-REPLICATION-v1.1.md) - replicacao em outro rig, incluindo copia do modelo por `scp`, host key SSH e `rsync` ausente.
-6. [`docs/RUNTIME-OPERATIONS-v1.1.md`](docs/RUNTIME-OPERATIONS-v1.1.md) - operacao diaria, interpretacao de logs, `Closing miner`, OPoI pausando GPUs e teste GPU-only.
-7. [`docs/TROUBLESHOOTING-v1.1.md`](docs/TROUBLESHOOTING-v1.1.md) - erros encontrados e solucoes.
+2. [`docs/VIRTUAL-CAPABILITIES-AND-ROUTING-v1.1.md`](docs/VIRTUAL-CAPABILITIES-AND-ROUTING-v1.1.md) - explica a "placa/capacidade virtual", o encaminhamento dos modelos e os testes de ponta a ponta.
+3. [`docs/FUNCTIONS-EXTERNAL-BACKEND-v1.1.md`](docs/FUNCTIONS-EXTERNAL-BACKEND-v1.1.md) - funcoes/blocos do patch, parametros, fluxo HTTP e parsing das respostas.
+4. [`docs/HEADNOTES-PER-FILE-v1.1.md`](docs/HEADNOTES-PER-FILE-v1.1.md) - headnotes por arquivo alterado/gerado, com motivo e cuidado de continuidade.
+5. [`docs/FILES-CHANGED-v1.1.md`](docs/FILES-CHANGED-v1.1.md) - inventario dos arquivos alterados, release assets e mudancas conceituais no fonte.
+6. [`docs/HIVEOS-OLLAMA-32B-SETUP.md`](docs/HIVEOS-OLLAMA-32B-SETUP.md) - instalacao completa em um rig HiveOS.
+7. [`docs/SECOND-RIG-REPLICATION-v1.1.md`](docs/SECOND-RIG-REPLICATION-v1.1.md) - replicacao em outro rig, incluindo copia do modelo por `scp`, host key SSH e `rsync` ausente.
+8. [`docs/RUNTIME-OPERATIONS-v1.1.md`](docs/RUNTIME-OPERATIONS-v1.1.md) - operacao diaria, interpretacao de logs, `Closing miner`, OPoI pausando GPUs e teste GPU-only.
+9. [`docs/TROUBLESHOOTING-v1.1.md`](docs/TROUBLESHOOTING-v1.1.md) - erros encontrados e solucoes.
 
 ## Pacote final recomendado
 
@@ -187,6 +189,7 @@ free -h
 
 ## Operacao e interpretacao rapida
 
+- A "placa virtual" e, na verdade, uma declaracao de capacidades virtuais de OPoI; o PoW continua usando GPUs reais via CUDA/OpenCL.
 - `via 'tinyllama'` mostra a capacidade interna solicitada. Com o mapeamento atual, o modelo real no Ollama continua sendo `keryx32b`.
 - `via 'deepseek-r1-32b'` indica que a capacidade solicitada pelo pool/Keryx foi a de 32B e tambem foi atendida pelo `keryx32b`.
 - `OPoI challenge in progress — PoW paused` e normal; o minerador pausa todos os workers enquanto uma unica inferencia OPoI esta pendente.
