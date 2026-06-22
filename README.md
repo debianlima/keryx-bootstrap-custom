@@ -36,14 +36,17 @@ OPoI challenge: done ... — PoW resumes on next notify
 Share accepted
 ```
 
-## Documentacao principal
+## Handoff para humano ou outra IA
 
 Leia nesta ordem:
 
-1. [`docs/HANDOFF-v1.1.md`](docs/HANDOFF-v1.1.md) - estado atual, arquitetura e comandos validados.
-2. [`docs/FILES-CHANGED-v1.1.md`](docs/FILES-CHANGED-v1.1.md) - mapa dos arquivos alterados e motivo de cada mudanca.
-3. [`docs/HIVEOS-OLLAMA-32B-SETUP.md`](docs/HIVEOS-OLLAMA-32B-SETUP.md) - procedimento de instalacao/replicacao em outro rig.
-4. [`docs/TROUBLESHOOTING-v1.1.md`](docs/TROUBLESHOOTING-v1.1.md) - erros encontrados e solucoes.
+1. [`docs/HANDOFF-v1.1.md`](docs/HANDOFF-v1.1.md) - estado atual, arquitetura, pacote correto e comandos validados.
+2. [`docs/HEADNOTES-PER-FILE-v1.1.md`](docs/HEADNOTES-PER-FILE-v1.1.md) - headnotes por arquivo alterado/gerado, com motivo e cuidado de continuidade.
+3. [`docs/FILES-CHANGED-v1.1.md`](docs/FILES-CHANGED-v1.1.md) - inventario dos arquivos alterados, release assets e mudancas conceituais no fonte.
+4. [`docs/HIVEOS-OLLAMA-32B-SETUP.md`](docs/HIVEOS-OLLAMA-32B-SETUP.md) - instalacao completa em um rig HiveOS.
+5. [`docs/SECOND-RIG-REPLICATION-v1.1.md`](docs/SECOND-RIG-REPLICATION-v1.1.md) - replicacao em outro rig, incluindo copia do modelo por `scp`, host key SSH e `rsync` ausente.
+6. [`docs/RUNTIME-OPERATIONS-v1.1.md`](docs/RUNTIME-OPERATIONS-v1.1.md) - operacao diaria, interpretacao de logs, `Closing miner`, OPoI pausando GPUs e teste GPU-only.
+7. [`docs/TROUBLESHOOTING-v1.1.md`](docs/TROUBLESHOOTING-v1.1.md) - erros encontrados e solucoes.
 
 ## Pacote final recomendado
 
@@ -72,7 +75,7 @@ Motivo: o pacote sem plugins valida o backend externo, mas falha em producao com
 
 ## Bootstrap
 
-`keryx-bootstrap.sh` agora aponta por padrao para o pacote final `v1.1 reasoning-fix-with-plugins`.
+`keryx-bootstrap.sh` aponta por padrao para o pacote final `v1.1 reasoning-fix-with-plugins`.
 
 Observacao importante: se `/hive/miners/custom/keryx-miner.bin` ja existir, o bootstrap nao baixa novamente; ele apenas regrava o wrapper `keryx-miner`. Para forcar nova instalacao, remova ou renomeie o binario atual antes de rodar o bootstrap, ou use instalacao manual.
 
@@ -181,6 +184,14 @@ ollama ps
 nvidia-smi
 free -h
 ```
+
+## Operacao e interpretacao rapida
+
+- `via 'tinyllama'` mostra a capacidade interna solicitada. Com o mapeamento atual, o modelo real no Ollama continua sendo `keryx32b`.
+- `via 'deepseek-r1-32b'` indica que a capacidade solicitada pelo pool/Keryx foi a de 32B e tambem foi atendida pelo `keryx32b`.
+- `OPoI challenge in progress — PoW paused` e normal; o minerador pausa todos os workers enquanto uma unica inferencia OPoI esta pendente.
+- `Closing miner` seguido de `Client closed gracefully` e `Client closed, reconnecting` indica reconexao limpa; investigar apenas se ocorrer em loop.
+- `keep_alive=-1` mantem o modelo carregado, mas nao acumula contexto/conversa entre chamadas.
 
 ## Proximos passos recomendados
 
