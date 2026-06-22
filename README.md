@@ -4,22 +4,25 @@ Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
 
 ## Status atual
 
-Versao atual: v1.0-external-inference.
+Versao atual: **v1.0-external-inference-hiveos-glibc234-compatible**.
+
+Esta versao inclui o minerador Keryx v1.0 customizado com suporte experimental a backend externo de inferencia compativel com OpenAI.
 
 Mudancas principais:
 
 - Mantem a base do bootstrap v24-no-hconfig-defaults.
 - O h-config.sh nao usa mais pool, wallet nem extra args padrao.
 - O comando do minerador vem somente do Flight Sheet/API do HiveOS.
-- CUSTOM_URL vira -s.
-- CUSTOM_TEMPLATE vira --mining-address.
+- CUSTOM_URL vira `-s`.
+- CUSTOM_TEMPLATE vira `--mining-address`.
 - CUSTOM_USER_CONFIG vira argumentos extras.
-- Se Extra config estiver vazio, o script nao adiciona --light automaticamente.
-- Para usar light, coloque --light no Extra config arguments.
+- Se Extra config estiver vazio, o script nao adiciona `--light` automaticamente.
+- Para usar light, coloque `--light` no Extra config arguments.
 - Mantem o modo Docker para kernel inferior a 6.6 e o aviso ao usuario.
 - Mantem h-stats no padrao HiveOS com hs_units khs.
 - Adiciona suporte experimental a backend externo de inferencia compativel com OpenAI.
-- Permite declarar capacidade virtual para modelos maiores, como deepseek-r1-32b, quando uma API externa/local estiver respondendo.
+- Permite declarar capacidade virtual para modelos maiores, como `deepseek-r1-32b`, quando uma API externa/local estiver respondendo.
+- O pacote atual foi ajustado para nao exigir `GLIBC_2.39`; o binario empacotado exige no maximo `GLIBC_2.34`, devendo rodar em HiveOS/Ubuntu 22.04 com `glibc 2.35`.
 
 ## Minerador v1.0: backend externo de inferencia
 
@@ -39,7 +42,7 @@ Keryx Miner no HiveOS
 
 Importante: este modo nao cria uma GPU falsa no Linux e nao mascara VRAM no driver NVIDIA. A capacidade virtual e declarada pelo Keryx somente quando o backend externo configurado responde ao teste inicial.
 
-### Exemplo com backend externo 32B
+## Exemplo com backend externo 32B
 
 Exemplo de uso direto no terminal:
 
@@ -76,9 +79,9 @@ Com API protegida por chave:
 --external-inference-url http://192.168.1.50:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-api-key SUA_CHAVE_AQUI --external-inference-timeout-sec 240
 ```
 
-### Explicacao das flags externas
+## Explicacao das flags externas
 
-#### `--external-inference-url`
+### `--external-inference-url`
 
 Define o endpoint HTTP que o Keryx vai chamar para gerar a resposta da inferencia.
 
@@ -97,7 +100,7 @@ http://192.168.1.50:8000/v1/chat/completions
 
 Use `127.0.0.1` quando o backend de IA estiver na mesma maquina do minerador. Use o IP da rede local quando o backend estiver em outro computador.
 
-#### `--external-inference-model`
+### `--external-inference-model`
 
 Declara quais modelos do Keryx serao atendidos pelo backend externo.
 
@@ -128,7 +131,7 @@ A flag pode ser repetida para mais de um modelo:
 
 O Keryx so deve declarar a capacidade externa depois que o probe da API passar.
 
-#### `--external-inference-api-key`
+### `--external-inference-api-key`
 
 Define uma chave opcional para APIs externas protegidas.
 
@@ -140,7 +143,7 @@ Authorization: Bearer SUA_CHAVE_AQUI
 
 Use somente se o backend externo exigir autenticacao. Se a API estiver aberta apenas em `127.0.0.1` e nao exigir chave, essa flag pode ficar ausente.
 
-#### `--external-inference-timeout-sec`
+### `--external-inference-timeout-sec`
 
 Define o tempo maximo, em segundos, que o Keryx aguarda cada resposta da API externa.
 
@@ -178,74 +181,43 @@ Depois configure o Keryx com:
 --external-inference-url http://127.0.0.1:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-timeout-sec 240
 ```
 
-## Versao do minerador original
-
-O bootstrap nao baixa automaticamente a ultima release do Keryx-Labs/keryx-miner.
-
-Por padrao, ele baixa sempre a versao fixada no keryx-bootstrap.sh:
-
-```text
-KERYX_REPO=Keryx-Labs/keryx-miner
-KERYX_TAG=v0.3.2-OPoI
-```
-
-Isso foi feito de proposito para evitar que uma release nova do minerador original quebre o Custom Miner do HiveOS sem teste.
-
-Para usar um pacote customizado, force uma URL exata do pacote:
-
-```bash
-export KERYX_PACKAGE_URL="https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-linux-amd64.tar.gz"
-```
-
-Ou, no proprio bootstrap/release, atualize `KERYX_PACKAGE_URL` para apontar para o asset customizado.
-
-## Destaque: modo de compatibilidade HiveOS kernel 6.1.0
-
-Este pacote tem modo de compatibilidade para rigs HiveOS antigas, principalmente rigs com kernel 6.1.0-hiveos.
-
-Quando o kernel for inferior a 6.6, o h-run.sh muda automaticamente para execucao em container Ubuntu 22.04. Isso evita erro de biblioteca/GLIBC em imagens antigas do HiveOS sem obrigar troca imediata da imagem do sistema.
-
-O que acontece automaticamente no modo compatibilidade:
-
-- envia aviso ao usuario recomendando atualizar o HiveOS/kernel;
-- informa que o Keryx vai rodar em container Ubuntu 22.04;
-- tenta instalar wget e ca-certificates no host;
-- tenta instalar e iniciar Docker se necessario;
-- cria a imagem local keryx-hiveos-ubuntu22:22.04;
-- monta /hive/miners/custom dentro do container como /miners;
-- mantem a execucao dentro da screen padrao do HiveOS;
-- mantem o log em /var/log/miner/keryx-miner.log;
-- mantem o h-stats.sh alimentando a API de monitoramento do HiveOS.
-
-Resumo:
-
-```text
-Kernel 6.6 ou superior  -> roda nativo no HiveOS
-Kernel inferior a 6.6   -> roda em container Ubuntu 22.04
-Kernel 6.1.0-hiveos    -> modo compatibilidade ativado automaticamente
-```
-
-Dependencias instaladas no host quando necessario:
-
-```bash
-apt-get update
-apt-get install -y wget ca-certificates
-```
-
-Observacao: o modo Docker precisa que o Docker consiga acessar as GPUs com --gpus all. Se o runtime NVIDIA do Docker nao estiver disponivel, o erro aparece no log e o loop do minerador continua tentando.
-
 ## Release
 
-URL direta esperada do asset v1.0:
+URL direta esperada do pacote HiveOS/glibc compatível:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-bootstrap-custom-hiveos-v1.0-external-inference.tar.gz
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-compatible.tar.gz
 ```
 
-Asset do minerador customizado esperado:
+SHA256 esperado:
 
 ```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-linux-amd64.tar.gz
+b49f75afe74aa60eb25261167bb490d0355935273f6abffe5ad04acd15064efc
+```
+
+O bootstrap atual baixa esse pacote por padrao em `keryx-bootstrap.sh`.
+
+## Build Ubuntu 22.04 / HiveOS
+
+Foi adicionado um builder para recompilar em ambiente Ubuntu 22.04/CUDA/Rust 1.88 quando houver Docker disponivel:
+
+```text
+build-ubuntu22-hiveos.sh
+build/ubuntu22/Dockerfile
+build/ubuntu22/container-build.sh
+docs/build-ubuntu22-hiveos.md
+```
+
+Uso:
+
+```bash
+git clone https://github.com/debianlima/keryx-bootstrap-custom.git
+cd keryx-bootstrap-custom
+chmod +x build-ubuntu22-hiveos.sh
+
+./build-ubuntu22-hiveos.sh \
+  /caminho/keryx-miner-0.3.2-OPoI-external-backend-devwallet-final-src.zip \
+  /tmp/keryx-v1-hiveos-build
 ```
 
 ## Flight Sheet
@@ -276,9 +248,15 @@ Extra config arguments: --external-inference-url http://127.0.0.1:8000/v1/chat/c
 
 Coloque sua wallet no campo Wallet and worker template.
 
-### Exemplo visual no HiveOS
+## Teste do pacote
 
-![Exemplo de configuracao Custom Miner no HiveOS](docs/images/hiveos-custom-config-v24.svg)
+```bash
+wget -O /tmp/test-download-v1-package.sh \
+  https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/scripts/test-download-v1-package.sh
+
+chmod +x /tmp/test-download-v1-package.sh
+/tmp/test-download-v1-package.sh
+```
 
 ## Instalacao manual de recuperacao
 
@@ -329,7 +307,7 @@ miner start
 miner stop 2>/dev/null || true
 sleep 3
 screen -wipe || true
-wget -qO /hive/miners/custom/h-config.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/keryx-api-local/h-config.sh
+wget -qO /hive/miners/custom/h-config.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-config.sh
 chmod 755 /hive/miners/custom/h-config.sh
 miner start
 ```
