@@ -5,11 +5,25 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 . ./h-manifest.conf
 
-KERYX_REPO="${KERYX_REPO:-Keryx-Labs/keryx-miner}"
-KERYX_TAG="${KERYX_TAG:-v0.3.2-OPoI}"
+# Padrao v1.0 customizado: baixa diretamente o binario compilado deste repositorio.
+# Para voltar ao minerador original, sobrescreva KERYX_PACKAGE_URL ou KERYX_REPO/KERYX_TAG.
+KERYX_REPO="${KERYX_REPO:-debianlima/keryx-bootstrap-custom}"
+KERYX_TAG="${KERYX_TAG:-v1.0}"
 KERYX_CUDA_ARCH="${KERYX_CUDA_ARCH:-sm86}"
-PACKAGE_URL="${KERYX_PACKAGE_URL:-${KERYX_REAL_PACKAGE_URL:-}}"
-PACKAGE_SHA256="${KERYX_PACKAGE_SHA256:-}"
+KERYX_DEFAULT_PACKAGE_URL="${KERYX_DEFAULT_PACKAGE_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-linux-amd64.tar.gz}"
+KERYX_DEFAULT_PACKAGE_SHA256="${KERYX_DEFAULT_PACKAGE_SHA256:-ca7097c3be648eac5d0e89a1ce6ef4bdef92a0f387cb0e62dac16deddec88558}"
+
+if [ -n "${KERYX_PACKAGE_URL:-}" ]; then
+  PACKAGE_URL="$KERYX_PACKAGE_URL"
+  PACKAGE_SHA256="${KERYX_PACKAGE_SHA256:-}"
+elif [ -n "${KERYX_REAL_PACKAGE_URL:-}" ]; then
+  PACKAGE_URL="$KERYX_REAL_PACKAGE_URL"
+  PACKAGE_SHA256="${KERYX_PACKAGE_SHA256:-}"
+else
+  PACKAGE_URL="$KERYX_DEFAULT_PACKAGE_URL"
+  PACKAGE_SHA256="${KERYX_PACKAGE_SHA256:-$KERYX_DEFAULT_PACKAGE_SHA256}"
+fi
+
 TMP_BASE="${TMPDIR:-/tmp}/keryx-bootstrap.$$"
 LOCK="/tmp/keryx-bootstrap-custom.lock"
 
@@ -24,7 +38,7 @@ if command -v flock >/dev/null 2>&1; then
 fi
 
 write_wrapper() {
-  # Nunca deixar o pacote oficial sobrescrever o wrapper local com o binario real.
+  # Nunca deixar o pacote oficial/custom sobrescrever o wrapper local com o binario real.
   # O HiveOS pode chamar CUSTOM_MINERBIN diretamente em alguns fluxos; por isso
   # keryx-miner precisa voltar para h-run.sh, que gera config.ini e chama o binario.
   cat > "$DIR/keryx-miner" <<'WRAP'
@@ -109,7 +123,7 @@ case "$PACKAGE_URL" in
   *) ARCHIVE="$ARCHIVE.pkg" ;;
 esac
 
-log "baixando pacote Keryx real"
+log "baixando pacote Keryx"
 log "URL: $PACKAGE_URL"
 fetch_url_to_file "$PACKAGE_URL" "$ARCHIVE"
 
