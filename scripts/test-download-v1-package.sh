@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-URL="${KERYX_TEST_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-linux-amd64.tar.gz}"
-SHA256="${KERYX_TEST_SHA256:-ca7097c3be648eac5d0e89a1ce6ef4bdef92a0f387cb0e62dac16deddec88558}"
+URL="${KERYX_TEST_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-compatible.tar.gz}"
+SHA256="${KERYX_TEST_SHA256:-b49f75afe74aa60eb25261167bb490d0355935273f6abffe5ad04acd15064efc}"
 WORKDIR="${KERYX_TEST_WORKDIR:-/tmp/keryx-download-v1-test}"
 
 rm -rf "$WORKDIR"
@@ -37,5 +37,11 @@ chmod +x "$BIN"
 echo "[KERYX-TEST] Binario encontrado: $BIN"
 "$BIN" --version || true
 "$BIN" --help | grep -E -- '--external-inference-(url|model|api-key|timeout-sec)'
+strings "$BIN" | grep -Eo 'GLIBC_[0-9]+\.[0-9]+' | sort -Vu | tail -20 || true
+
+if strings "$BIN" | grep -q 'GLIBC_2.39'; then
+  echo "ERRO: binario ainda exige GLIBC_2.39" >&2
+  exit 1
+fi
 
 echo "[KERYX-TEST] OK"
