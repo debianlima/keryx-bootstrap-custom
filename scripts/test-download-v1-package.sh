@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-URL="${KERYX_TEST_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.1/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-reasoning-fix.zip}"
-SHA256="${KERYX_TEST_SHA256:-7232c21a65334c7c04dd42250e87acfd821b2daec3fe53403ca71c88da83b02f}"
+# Teste do pacote final v1.1 WITH-PLUGINS.
+# Este script valida download, SHA256, flags externas, GLIBC e presenca dos plugins recompilados.
+# O pacote sem plugins serve apenas para diagnostico; para producao use o with-plugins.
+
+URL="${KERYX_TEST_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.1/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-reasoning-fix-with-plugins.tar.gz}"
+SHA256="${KERYX_TEST_SHA256:-c71c0a6a3d36cbc3f84f56b8288d999222373d93f70d645671d68c8d724a349e}"
 WORKDIR="${KERYX_TEST_WORKDIR:-/tmp/keryx-download-v1-test}"
 
 rm -rf "$WORKDIR"
@@ -47,15 +51,30 @@ if [ -z "$BIN" ]; then
   exit 1
 fi
 
-chmod +x "$BIN"
-echo "[KERYX-TEST] Binario encontrado: $BIN"
-"$BIN" --version || true
-"$BIN" --help | grep -E -- '--external-inference-(url|model|api-key|timeout-sec)'
-strings "$BIN" | grep -Eo 'GLIBC_[0-9]+\.[0-9]+' | sort -Vu | tail -20 || true
+DIR="$(dirname "$BIN")"
+CUDA_PLUGIN="$(find "$WORKDIR/extract" -type f -name 'libkeryxcuda.so' | head -n 1 || true)"
+OPENCL_PLUGIN="$(find "$WORKDIR/extract" -type f -name 'libkeryxopencl.so' | head -n 1 || true)"
 
-if strings "$BIN" | grep -q 'GLIBC_2.39'; then
-  echo "ERRO: binario ainda exige GLIBC_2.39" >&2
+if [ -z "$CUDA_PLUGIN" ] || [ -z "$OPENCL_PLUGIN" ]; then
+  echo "ERRO: pacote final precisa conter libkeryxcuda.so e libkeryxopencl.so recompilados junto com o binario" >&2
+  find "$WORKDIR/extract" -maxdepth 4 -type f | sort >&2
   exit 1
 fi
+
+chmod +x "$BIN" "$CUDA_PLUGIN" "$OPENCL_PLUGIN"
+echo "[KERYX-TEST] Binario encontrado: $BIN"
+echo "[KERYX-TEST] CUDA plugin: $CUDA_PLUGIN"
+echo "[KERYX-TEST] OpenCL plugin: $OPENCL_PLUGIN"
+"$BIN" --version || true
+"$BIN" --help | grep -E -- '--external-inference-(url|model|api-key|timeout-sec)'
+
+for f in "$BIN" "$CUDA_PLUGIN" "$OPENCL_PLUGIN"; do
+  echo "[KERYX-TEST] GLIBC symbols: $f"
+  strings "$f" | grep -Eo 'GLIBC_[0-9]+\.[0-9]+' | sort -Vu | tail -20 || true
+  if strings "$f" | grep -q 'GLIBC_2.39'; then
+    echo "ERRO: $f ainda exige GLIBC_2.39" >&2
+    exit 1
+  fi
+done
 
 echo "[KERYX-TEST] OK"
