@@ -5,14 +5,15 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 . ./h-manifest.conf
 
-# Padrao v1.0 customizado: baixa diretamente o binario compilado deste repositorio.
+# Padrao v1.1 customizado: baixa diretamente o binario compilado deste repositorio.
 # Pacote atual e compatível com HiveOS/Ubuntu 22.04, sem exigir GLIBC_2.39.
+# Inclui reasoning-fix para respostas do Ollama/DeepSeek em choices[0].message.reasoning.
 # Para voltar ao minerador original, sobrescreva KERYX_PACKAGE_URL ou KERYX_REPO/KERYX_TAG.
 KERYX_REPO="${KERYX_REPO:-debianlima/keryx-bootstrap-custom}"
-KERYX_TAG="${KERYX_TAG:-v1.0}"
+KERYX_TAG="${KERYX_TAG:-v1.1}"
 KERYX_CUDA_ARCH="${KERYX_CUDA_ARCH:-sm86}"
-KERYX_DEFAULT_PACKAGE_URL="${KERYX_DEFAULT_PACKAGE_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-compatible.tar.gz}"
-KERYX_DEFAULT_PACKAGE_SHA256="${KERYX_DEFAULT_PACKAGE_SHA256:-b49f75afe74aa60eb25261167bb490d0355935273f6abffe5ad04acd15064efc}"
+KERYX_DEFAULT_PACKAGE_URL="${KERYX_DEFAULT_PACKAGE_URL:-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.1/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-reasoning-fix.zip}"
+KERYX_DEFAULT_PACKAGE_SHA256="${KERYX_DEFAULT_PACKAGE_SHA256:-7232c21a65334c7c04dd42250e87acfd821b2daec3fe53403ca71c88da83b02f}"
 
 if [ -n "${KERYX_PACKAGE_URL:-}" ]; then
   PACKAGE_URL="$KERYX_PACKAGE_URL"
