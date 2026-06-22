@@ -1,252 +1,80 @@
 # keryx-bootstrap-custom
 
-Bootstrap para rodar o Keryx Miner no HiveOS como Custom Miner.
+Bootstrap e pacote custom para rodar **Keryx Miner 0.3.2 no HiveOS** com backend externo de inferencia OPoI via API OpenAI-compatible.
 
-## Status atual
+## Estado atual
 
-Versao atual: **v1.0-external-inference-hiveos-glibc234-compatible**.
+Versao funcional validada: **v1.1 reasoning-fix with-plugins**.
 
-Esta versao inclui o minerador Keryx v1.0 customizado com suporte experimental a backend externo de inferencia compativel com OpenAI.
-
-Mudancas principais:
-
-- Mantem a base do bootstrap v24-no-hconfig-defaults.
-- O h-config.sh nao usa mais pool, wallet nem extra args padrao.
-- O comando do minerador vem somente do Flight Sheet/API do HiveOS.
-- CUSTOM_URL vira `-s`.
-- CUSTOM_TEMPLATE vira `--mining-address`.
-- CUSTOM_USER_CONFIG vira argumentos extras.
-- Se Extra config estiver vazio, o script nao adiciona `--light` automaticamente.
-- Para usar light, coloque `--light` no Extra config arguments.
-- Mantem o modo Docker para kernel inferior a 6.6 e o aviso ao usuario.
-- Mantem h-stats no padrao HiveOS com hs_units khs.
-- Adiciona suporte experimental a backend externo de inferencia compativel com OpenAI.
-- Permite declarar capacidade virtual para modelos maiores, como `deepseek-r1-32b`, quando uma API externa/local estiver respondendo.
-- O pacote atual foi ajustado para nao exigir `GLIBC_2.39`; o binario empacotado exige no maximo `GLIBC_2.34`, devendo rodar em HiveOS/Ubuntu 22.04 com `glibc 2.35`.
-
-## Minerador v1.0: backend externo de inferencia
-
-A versao 1.0 adiciona um modo opcional para o Keryx consultar uma API local ou remota compativel com OpenAI quando precisar responder uma inferencia OPoI.
-
-O funcionamento padrao continua igual. Se nenhuma flag `--external-inference-*` for usada, o Keryx usa o fluxo original com os modelos locais, Candle/CUDA e os arquivos `.ok` em `models/`.
-
-Com backend externo habilitado, o desenho fica assim:
+Esta versao foi validada em producao experimental com:
 
 ```text
-Keryx Miner no HiveOS
-  -> PoW e fluxo padrao continuam no rig
-  -> inferencia de modelo externo vai para uma API OpenAI-compatible
-        -> llama.cpp / vLLM / outro servidor local
-        -> modelo maior, por exemplo 32B, pode rodar em outra GPU ou em varias GPUs
+HiveOS custom miner
+Keryx Miner 0.3.2
+3 workers CUDA
+Ollama local em http://127.0.0.1:11434/v1/chat/completions
+Modelo Ollama keryx32b criado a partir de DeepSeek-R1-32B GGUF
+Contexto 32768
+keep_alive=-1 / Forever
+--high ativo, declarando TinyLlama + DeepSeek-R1-8B + DeepSeek-R1-32B
+Todos os modelos internos apontando para keryx32b
+Shares aceitas depois de desafio OPoI
 ```
 
-Importante: este modo nao cria uma GPU falsa no Linux e nao mascara VRAM no driver NVIDIA. A capacidade virtual e declarada pelo Keryx somente quando o backend externo configurado responde ao teste inicial.
-
-## Exemplo com backend externo 32B
-
-Exemplo de uso direto no terminal:
-
-```bash
-./keryx-miner \
-  -s stratum+tcp://krx.baikalmine.com:9020 \
-  --mining-address keryx:SEU_ENDERECO \
-  --external-inference-url http://127.0.0.1:8000/v1/chat/completions \
-  --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF \
-  --external-inference-timeout-sec 240
-```
-
-Exemplo com chave de API:
-
-```bash
-./keryx-miner \
-  -s stratum+tcp://krx.baikalmine.com:9020 \
-  --mining-address keryx:SEU_ENDERECO \
-  --external-inference-url http://192.168.1.50:8000/v1/chat/completions \
-  --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF \
-  --external-inference-api-key SUA_CHAVE_AQUI \
-  --external-inference-timeout-sec 240
-```
-
-Exemplo no campo `Extra config arguments` do HiveOS:
+Log validado esperado:
 
 ```text
---external-inference-url http://127.0.0.1:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-timeout-sec 240
+External OPoI backend verified — virtual capabilities enabled.
+OPoI Phase-3 active — 3 local model(s) selected.
+SlmEngine: 'tinyllama' served by external backend — skipping local model prefetch.
+SlmEngine: 'deepseek-r1-8b' served by external backend — skipping local model prefetch.
+SlmEngine: 'deepseek-r1-32b' served by external backend — skipping local model prefetch.
+Plugins found 3 workers
+OPoI: declaring 3 model(s) to pool bridge
+External OPoI: inference complete via 'deepseek-r1-32b'
+OPoI challenge: done ... — PoW resumes on next notify
+Share accepted
 ```
 
-Com API protegida por chave:
+## Documentacao principal
+
+Leia nesta ordem:
+
+1. [`docs/HANDOFF-v1.1.md`](docs/HANDOFF-v1.1.md) - estado atual, arquitetura e comandos validados.
+2. [`docs/FILES-CHANGED-v1.1.md`](docs/FILES-CHANGED-v1.1.md) - mapa dos arquivos alterados e motivo de cada mudanca.
+3. [`docs/HIVEOS-OLLAMA-32B-SETUP.md`](docs/HIVEOS-OLLAMA-32B-SETUP.md) - procedimento de instalacao/replicacao em outro rig.
+4. [`docs/TROUBLESHOOTING-v1.1.md`](docs/TROUBLESHOOTING-v1.1.md) - erros encontrados e solucoes.
+
+## Pacote final recomendado
+
+Usar o pacote **with-plugins**, nao o pacote sem plugins.
 
 ```text
---external-inference-url http://192.168.1.50:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-api-key SUA_CHAVE_AQUI --external-inference-timeout-sec 240
+https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.1/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-reasoning-fix-with-plugins.tar.gz
 ```
 
-## Explicacao das flags externas
-
-### `--external-inference-url`
-
-Define o endpoint HTTP que o Keryx vai chamar para gerar a resposta da inferencia.
-
-Deve apontar para um endpoint compativel com OpenAI Chat Completions, normalmente:
+SHA256:
 
 ```text
-http://IP_DO_SERVIDOR:PORTA/v1/chat/completions
+c71c0a6a3d36cbc3f84f56b8288d999222373d93f70d645671d68c8d724a349e
 ```
 
-Exemplos:
+Conteudo esperado:
 
 ```text
-http://127.0.0.1:8000/v1/chat/completions
-http://192.168.1.50:8000/v1/chat/completions
+keryx-miner
+keryx-miner.bin
+libkeryxcuda.so
+libkeryxopencl.so
 ```
 
-Use `127.0.0.1` quando o backend de IA estiver na mesma maquina do minerador. Use o IP da rede local quando o backend estiver em outro computador.
+Motivo: o pacote sem plugins valida o backend externo, mas falha em producao com `No workers specified`. Plugins antigos misturados com binario novo causam panic `Mismatch between definition and access`.
 
-### `--external-inference-model`
+## Bootstrap
 
-Declara quais modelos do Keryx serao atendidos pelo backend externo.
+`keryx-bootstrap.sh` agora aponta por padrao para o pacote final `v1.1 reasoning-fix-with-plugins`.
 
-Formato simples, quando o nome do modelo no backend externo e igual ao nome interno do Keryx:
-
-```text
---external-inference-model deepseek-r1-32b
-```
-
-Formato com mapeamento, quando o nome do modelo na API externa e diferente:
-
-```text
---external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF
-```
-
-Neste exemplo:
-
-```text
-deepseek-r1-32b       = nome interno/model_id conhecido pelo Keryx
-DeepSeek-R1-32B-GGUF  = nome do modelo publicado pela API externa
-```
-
-A flag pode ser repetida para mais de um modelo:
-
-```text
---external-inference-model tinyllama=TinyLlama-1.1B-GGUF --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF
-```
-
-O Keryx so deve declarar a capacidade externa depois que o probe da API passar.
-
-### `--external-inference-api-key`
-
-Define uma chave opcional para APIs externas protegidas.
-
-Quando usada, o Keryx envia a chave no cabecalho HTTP como token Bearer:
-
-```text
-Authorization: Bearer SUA_CHAVE_AQUI
-```
-
-Use somente se o backend externo exigir autenticacao. Se a API estiver aberta apenas em `127.0.0.1` e nao exigir chave, essa flag pode ficar ausente.
-
-### `--external-inference-timeout-sec`
-
-Define o tempo maximo, em segundos, que o Keryx aguarda cada resposta da API externa.
-
-Valor padrao do minerador v1.0:
-
-```text
-180
-```
-
-Para modelo grande, especialmente 32B em varias GPUs ou quantizacao pesada, recomenda-se usar um valor maior:
-
-```text
---external-inference-timeout-sec 240
-```
-
-Se o backend externo demorar mais que esse tempo, a inferencia falha e o Keryx nao deve usar aquela resposta.
-
-## Exemplo de backend externo com llama.cpp
-
-Exemplo conceitual para rodar um servidor local compativel com OpenAI:
-
-```bash
-llama-server \
-  -m /modelos/deepseek-r1-32b.gguf \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --n-gpu-layers 999 \
-  --split-mode layer \
-  --tensor-split 1,1,1
-```
-
-Depois configure o Keryx com:
-
-```text
---external-inference-url http://127.0.0.1:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-timeout-sec 240
-```
-
-## Release
-
-URL direta esperada do pacote HiveOS/glibc compatível:
-
-```text
-https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-miner-0.3.2-OPoI-external-backend-devwallet-sm86-hiveos-glibc234-compatible.tar.gz
-```
-
-SHA256 esperado:
-
-```text
-b49f75afe74aa60eb25261167bb490d0355935273f6abffe5ad04acd15064efc
-```
-
-O bootstrap atual baixa esse pacote por padrao em `keryx-bootstrap.sh`.
-
-## Build Ubuntu 22.04 / HiveOS
-
-Foi adicionado um builder para recompilar em ambiente Ubuntu 22.04/CUDA/Rust 1.88 quando houver Docker disponivel:
-
-```text
-build-ubuntu22-hiveos.sh
-build/ubuntu22/Dockerfile
-build/ubuntu22/container-build.sh
-docs/build-ubuntu22-hiveos.md
-```
-
-Uso:
-
-```bash
-git clone https://github.com/debianlima/keryx-bootstrap-custom.git
-cd keryx-bootstrap-custom
-chmod +x build-ubuntu22-hiveos.sh
-
-./build-ubuntu22-hiveos.sh \
-  /caminho/keryx-miner-0.3.2-OPoI-external-backend-devwallet-final-src.zip \
-  /tmp/keryx-v1-hiveos-build
-```
-
-## Flight Sheet
-
-### Modo padrao light
-
-```text
-Miner: Custom
-Miner name: keryx-bootstrap-custom-hiveos-v1.0
-Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-bootstrap-custom-hiveos-v1.0-external-inference.tar.gz
-Hash algorithm: blake3-alph
-Pool URL: stratum+tcp://krx.baikalmine.com:9020
-Pass: vazio
-Extra config arguments: --light
-```
-
-### Modo com backend externo 32B
-
-```text
-Miner: Custom
-Miner name: keryx-bootstrap-custom-hiveos-v1.0
-Installation URL: https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-bootstrap-custom-hiveos-v1.0-external-inference.tar.gz
-Hash algorithm: blake3-alph
-Pool URL: stratum+tcp://krx.baikalmine.com:9020
-Pass: vazio
-Extra config arguments: --external-inference-url http://127.0.0.1:8000/v1/chat/completions --external-inference-model deepseek-r1-32b=DeepSeek-R1-32B-GGUF --external-inference-timeout-sec 240
-```
-
-Coloque sua wallet no campo Wallet and worker template.
+Observacao importante: se `/hive/miners/custom/keryx-miner.bin` ja existir, o bootstrap nao baixa novamente; ele apenas regrava o wrapper `keryx-miner`. Para forcar nova instalacao, remova ou renomeie o binario atual antes de rodar o bootstrap, ou use instalacao manual.
 
 ## Teste do pacote
 
@@ -258,64 +86,110 @@ chmod +x /tmp/test-download-v1-package.sh
 /tmp/test-download-v1-package.sh
 ```
 
-## Instalacao manual de recuperacao
+O teste valida:
 
-Use este comando quando o minerador nao iniciar, quando o HiveOS nao criar a pasta `/hive/miners/custom`, ou quando a pasta `custom` tiver sido apagada:
-
-```bash
-miner stop 2>/dev/null || true
-sleep 3
-screen -wipe || true
-
-URL="https://github.com/debianlima/keryx-bootstrap-custom/releases/download/v1.0/keryx-bootstrap-custom-hiveos-v1.0-external-inference.tar.gz"
-TMP="/tmp/keryx-custom-manual"
-PKG="/tmp/keryx-custom.tar.gz"
-
-rm -rf "$TMP"
-mkdir -p "$TMP" /hive/miners/custom
-
-wget -O "$PKG" "$URL" || exit 1
-gzip -t "$PKG" || exit 1
-tar -xzf "$PKG" -C "$TMP" || exit 1
-
-if [ -f "$TMP/h-manifest.conf" ]; then
-  cp -af "$TMP/." /hive/miners/custom/
-elif [ -f "$TMP/custom/h-manifest.conf" ]; then
-  cp -af "$TMP/custom/." /hive/miners/custom/
-else
-  echo "ERRO: pacote baixado, mas h-manifest.conf nao foi encontrado"
-  find "$TMP" -maxdepth 3 -type f | sort
-  exit 1
-fi
-
-chmod 755 /hive/miners/custom/h-run \
-          /hive/miners/custom/h-run.sh \
-          /hive/miners/custom/h-config.sh \
-          /hive/miners/custom/h-stats.sh \
-          /hive/miners/custom/keryx-bootstrap.sh \
-          /hive/miners/custom/keryx-miner 2>/dev/null || true
-
-[ -f /hive/miners/custom/keryx-miner.bin ] && chmod 755 /hive/miners/custom/keryx-miner.bin
-
-ls -la /hive/miners/custom
-miner start
+```text
+SHA256
+flags --external-inference-*
+GLIBC maximo sem GLIBC_2.39
+presenca de libkeryxcuda.so
+presenca de libkeryxopencl.so
 ```
 
-## Hotfix rapido
+## Comando validado direto no terminal
 
 ```bash
-miner stop 2>/dev/null || true
-sleep 3
-screen -wipe || true
-wget -qO /hive/miners/custom/h-config.sh https://raw.githubusercontent.com/debianlima/keryx-bootstrap-custom/main/h-config.sh
-chmod 755 /hive/miners/custom/h-config.sh
-miner start
+cd /hive/miners/custom
+
+./keryx-miner.bin \
+  -s stratum+tcp://krx.baikalmine.com:9020 \
+  --mining-address keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pnesa.ESPOSA \
+  --high \
+  --external-inference-url http://127.0.0.1:11434/v1/chat/completions \
+  --external-inference-model tinyllama=keryx32b \
+  --external-inference-model deepseek-r1-8b=keryx32b \
+  --external-inference-model deepseek-r1-32b=keryx32b \
+  --external-inference-timeout-sec 900 \
+  2>&1 | tee /var/log/miner/keryx-v11-high-all-to-32b-ctx32k.log
 ```
 
-## Conferencia
+## Argumentos para HiveOS / Flight Sheet
+
+Campo extra/custom args:
+
+```text
+--high --external-inference-url http://127.0.0.1:11434/v1/chat/completions --external-inference-model tinyllama=keryx32b --external-inference-model deepseek-r1-8b=keryx32b --external-inference-model deepseek-r1-32b=keryx32b --external-inference-timeout-sec 900
+```
+
+Pool:
+
+```text
+stratum+tcp://krx.baikalmine.com:9020
+```
+
+## Ollama 32B resumido
 
 ```bash
-cat /hive/miners/custom/config.ini
-/hive/miners/custom/h-stats.sh
-/hive/miners/custom/keryx-miner.bin --help | grep external-inference
+mkdir -p /etc/systemd/system/ollama.service.d
+
+cat > /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+Environment="OLLAMA_CONTEXT_LENGTH=32768"
+Environment="OLLAMA_KEEP_ALIVE=-1"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_KV_CACHE_TYPE=q4_0"
+Environment="OLLAMA_SCHED_SPREAD=true"
+EOF
+
+systemctl daemon-reload
+systemctl restart ollama
+```
+
+Criar modelo:
+
+```bash
+cat > /tmp/Modelfile.keryx32b <<'EOF'
+FROM /hive/miners/custom/models/DeepSeek-R1-32B/model.gguf
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+PARAMETER repeat_last_n -1
+EOF
+
+ollama create keryx32b -f /tmp/Modelfile.keryx32b
+```
+
+Pre-carregar:
+
+```bash
+curl -sS --max-time 900 \
+  http://127.0.0.1:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "keryx32b",
+    "prompt": "",
+    "keep_alive": -1,
+    "stream": false,
+    "options": { "num_ctx": 32768 }
+  }'
+
+ollama ps
+nvidia-smi
+free -h
+```
+
+## Proximos passos recomendados
+
+v1.2:
+
+```text
+- Separar fallback de reasoning no probe de backend e resposta real OPoI.
+- Tentar forcar respostas finais em choices[0].message.content.
+- Tornar fallback de reasoning opcional por flag.
+- Adicionar logs que mostrem model_id interno e api_model externo na mesma linha.
+- Avaliar GPU-only com keryx32b-gpu sem destruir o keryx32b misto CPU/GPU.
 ```
