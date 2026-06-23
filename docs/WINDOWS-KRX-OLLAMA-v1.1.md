@@ -11,9 +11,9 @@ Keryx Miner Windows
   --external-inference-url http://127.0.0.1:11500/v1/chat/completions
       |
       v
-Keryx Ollama Router PowerShell v11
-      |-- tinyllama       -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 65536
-      |-- deepseek-r1-8b  -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 65536
+Keryx Ollama Router PowerShell v12
+      |-- tinyllama       -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 131072
+      |-- deepseek-r1-8b  -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 131072
       `-- deepseek-r1-32b -> Ollama remoto 172.16.0.110:11434 / keryx32b
 ```
 
@@ -35,7 +35,7 @@ models\DeepSeek-R1-8B\model.gguf
 
 `C:\miners\miner_service_pack` contem o menu/tray original, `MinerService.ps1`, `config.json` e o router.
 
-## Modelo Ollama local 64k
+## Modelo Ollama local 128k
 
 O service pack cria/recria automaticamente `keryx8b-win` quando encontra:
 
@@ -43,34 +43,34 @@ O service pack cria/recria automaticamente `keryx8b-win` quando encontra:
 C:\miners\KeryxMiner\models\DeepSeek-R1-8B\model.gguf
 ```
 
-Na versao v11, o modelo local e recriado com:
+Na versao v12, o modelo local e recriado com:
 
 ```text
-PARAMETER num_ctx 65536
+PARAMETER num_ctx 131072
 PARAMETER num_gpu 999
 ```
 
-Motivo: nos testes Windows, o `keryx8b-win` com 32k usava aproximadamente 6,6 GB de VRAM em uma RTX 3060 12 GB. O contexto 64k aproveita melhor a VRAM disponivel.
+Motivo: nos testes Windows, o `keryx8b-win` com 64k usou aproximadamente 8 GB dos 12 GB de VRAM da RTX 3060. O contexto 128k tenta aproveitar melhor a VRAM disponivel.
 
-A v11 nao sobrescreve `C:\miners\KeryxMiner\Modelfile.keryx8b-win` diretamente. Ela cria um Modelfile temporario em `%TEMP%` e passa esse arquivo para `ollama create`. Isso evita erro de arquivo bloqueado quando o Modelfile fixo fica preso por editor, antivirus ou processo anterior.
+A v12 nao sobrescreve `C:\miners\KeryxMiner\Modelfile.keryx8b-win` diretamente. Ela cria um Modelfile temporario em `%TEMP%` e passa esse arquivo para `ollama create`. Isso evita erro de arquivo bloqueado quando o Modelfile fixo fica preso por editor, antivirus ou processo anterior.
 
 O modelo e carregado antes do minerador para evitar que o Keryx falhe no probe do backend externo.
 
-## Router v11
+## Router v12
 
-O router v11 resolve os problemas encontrados durante os testes Windows:
+O router v12 resolve os problemas encontrados durante os testes Windows:
 
 - HTTP 400 no `/v1/chat/completions` para alguns modelos GGUF custom;
 - resposta do modelo R1 com `reasoning` ou formato sem `content`;
 - Keryx recusando backend quando nao encontra `choices[0].message.content` ou `choices[0].text`;
 - necessidade de fallback para 32B remoto quando o 8B local falha;
-- tentativa de contexto local ate `65536`, com fallback decrescente;
+- tentativa de contexto local ate `131072`, com fallback decrescente;
 - erro de arquivo bloqueado ao recriar `Modelfile.keryx8b-win`.
 
 Sequencia de contexto no router:
 
 ```text
-65536 -> 49152 -> 32768 -> 24576 -> 16384 -> 8192 -> 4096
+131072 -> 114688 -> 98304 -> 81920 -> 65536 -> 49152 -> 32768 -> 24576 -> 16384 -> 8192 -> 4096
 ```
 
 O router sempre devolve uma resposta normalizada para o Keryx.
@@ -111,24 +111,24 @@ Share accepted
 Logs esperados no router/service:
 
 ```text
-Keryx Ollama Router PowerShell v11
-Modo robusto: normaliza resposta e tenta contexto local ate 65536
-Modelfile temporario 64k criado em %TEMP%
+Keryx Ollama Router PowerShell v12
+Modo robusto: normaliza resposta e tenta contexto local ate 131072
+Modelfile temporario 128k criado em %TEMP%
 Modelo pedido: keryx8b-win -> LOCAL Windows / keryx8b-win
 Modelo pedido: keryx32b -> REMOTE .110 / keryx32b
 ```
 
-## Recriar manualmente o modelo local com 64k sem tocar no Modelfile fixo
+## Recriar manualmente o modelo local com 128k sem tocar no Modelfile fixo
 
 ```powershell
 cd C:\miners\KeryxMiner
 ollama stop keryx8b-win 2>$null
 ollama rm keryx8b-win 2>$null
 
-$tmp = Join-Path $env:TEMP "Modelfile.keryx8b-win.ctx65536.manual.tmp"
+$tmp = Join-Path $env:TEMP "Modelfile.keryx8b-win.ctx131072.manual.tmp"
 @'
 FROM C:\miners\KeryxMiner\models\DeepSeek-R1-8B\model.gguf
-PARAMETER num_ctx 65536
+PARAMETER num_ctx 131072
 PARAMETER num_gpu 999
 PARAMETER temperature 0.2
 PARAMETER top_p 0.9
@@ -148,7 +148,7 @@ $body = @{
   prompt = ""
   keep_alive = -1
   stream = $false
-  options = @{ num_ctx = 65536; num_gpu = 999 }
+  options = @{ num_ctx = 131072; num_gpu = 999 }
 } | ConvertTo-Json -Depth 10
 
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:11434/api/generate" -ContentType "application/json" -Body $body -TimeoutSec 900
@@ -162,7 +162,7 @@ Use o script abaixo no Windows para empacotar uma release local:
 
 ```powershell
 cd <repo>\windows
-powershell -ExecutionPolicy Bypass -File .\package-windows-release.ps1 -Version v0.3.2-opoi-windows-krx-v11-ctx64k-tempmodelfile
+powershell -ExecutionPolicy Bypass -File .\package-windows-release.ps1 -Version v0.3.2-opoi-windows-krx-v12-ctx128k-tempmodelfile
 ```
 
 O ZIP final inclui:
