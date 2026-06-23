@@ -11,9 +11,9 @@ Keryx Miner Windows
   --external-inference-url http://127.0.0.1:11500/v1/chat/completions
       |
       v
-Keryx Ollama Router PowerShell v9
-      |-- tinyllama       -> Ollama Windows 127.0.0.1:11434 / keryx8b-win
-      |-- deepseek-r1-8b  -> Ollama Windows 127.0.0.1:11434 / keryx8b-win
+Keryx Ollama Router PowerShell v10
+      |-- tinyllama       -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 65536
+      |-- deepseek-r1-8b  -> Ollama Windows 127.0.0.1:11434 / keryx8b-win / ctx 65536
       `-- deepseek-r1-32b -> Ollama remoto 172.16.0.110:11434 / keryx32b
 ```
 
@@ -35,24 +35,40 @@ models\DeepSeek-R1-8B\model.gguf
 
 `C:\miners\miner_service_pack` contem o menu/tray original, `MinerService.ps1`, `config.json` e o router.
 
-## Modelo Ollama local
+## Modelo Ollama local 64k
 
-O service pack cria automaticamente `keryx8b-win` quando encontra:
+O service pack cria/recria automaticamente `keryx8b-win` quando encontra:
 
 ```text
 C:\miners\KeryxMiner\models\DeepSeek-R1-8B\model.gguf
 ```
 
+Na versao v10, o modelo local e recriado com:
+
+```text
+PARAMETER num_ctx 65536
+PARAMETER num_gpu 999
+```
+
+Motivo: nos testes Windows, o `keryx8b-win` com 32k usava aproximadamente 6,6 GB de VRAM em uma RTX 3060 12 GB. O contexto 64k aproveita melhor a VRAM disponivel.
+
 O modelo e carregado antes do minerador para evitar que o Keryx falhe no probe do backend externo.
 
-## Router v9
+## Router v10
 
-O router v9 resolve os problemas encontrados durante os testes Windows:
+O router v10 resolve os problemas encontrados durante os testes Windows:
 
 - HTTP 400 no `/v1/chat/completions` para alguns modelos GGUF custom;
 - resposta do modelo R1 com `reasoning` ou formato sem `content`;
 - Keryx recusando backend quando nao encontra `choices[0].message.content` ou `choices[0].text`;
-- necessidade de fallback para 32B remoto quando o 8B local falha.
+- necessidade de fallback para 32B remoto quando o 8B local falha;
+- tentativa de contexto local ate `65536`, com fallback decrescente.
+
+Sequencia de contexto no router:
+
+```text
+65536 -> 49152 -> 32768 -> 24576 -> 16384 -> 8192 -> 4096
+```
 
 O router sempre devolve uma resposta normalizada para o Keryx.
 
@@ -92,10 +108,45 @@ Share accepted
 Logs esperados no router:
 
 ```text
-Keryx Ollama Router PowerShell v9
-Modo robusto: normaliza toda resposta para choices[0].message.content
+Keryx Ollama Router PowerShell v10
+Modo robusto: normaliza resposta e tenta contexto local ate 65536
 Modelo pedido: keryx8b-win -> LOCAL Windows / keryx8b-win
 Modelo pedido: keryx32b -> REMOTE .110 / keryx32b
+```
+
+## Recriar manualmente o modelo local com 64k
+
+```powershell
+cd C:\miners\KeryxMiner
+ollama rm keryx8b-win
+
+@'
+FROM C:\miners\KeryxMiner\models\DeepSeek-R1-8B\model.gguf
+PARAMETER num_ctx 65536
+PARAMETER num_gpu 999
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+PARAMETER repeat_last_n -1
+'@ | Set-Content -Encoding ASCII C:\miners\KeryxMiner\Modelfile.keryx8b-win
+
+ollama create keryx8b-win -f C:\miners\KeryxMiner\Modelfile.keryx8b-win
+```
+
+Preload:
+
+```powershell
+$body = @{
+  model = "keryx8b-win"
+  prompt = ""
+  keep_alive = -1
+  stream = $false
+  options = @{ num_ctx = 65536; num_gpu = 999 }
+} | ConvertTo-Json -Depth 10
+
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:11434/api/generate" -ContentType "application/json" -Body $body -TimeoutSec 900
+ollama ps
+nvidia-smi
 ```
 
 ## Release Windows
@@ -104,7 +155,7 @@ Use o script abaixo no Windows para empacotar uma release local:
 
 ```powershell
 cd <repo>\windows
-powershell -ExecutionPolicy Bypass -File .\package-windows-release.ps1
+powershell -ExecutionPolicy Bypass -File .\package-windows-release.ps1 -Version v0.3.2-opoi-windows-krx-v10-ctx64k
 ```
 
 O ZIP final inclui:
