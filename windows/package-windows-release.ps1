@@ -2,7 +2,7 @@ param(
   [string]$KeryxDir = "C:\miners\KeryxMiner",
   [string]$ServicePackDir = "C:\miners\miner_service_pack",
   [string]$CudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6",
-  [string]$Version = "v0.3.2-opoi-windows-krx-v10-ctx64k",
+  [string]$Version = "v0.3.2-opoi-windows-krx-v12-ctx128k-tempmodelfile",
   [string]$OutDir = ".\dist"
 )
 
@@ -58,11 +58,11 @@ Instalacao esperada:
 4. Use: Iniciar Mineracao com Telas
 
 Roteamento:
-- tinyllama/deepseek-r1-8b -> keryx8b-win local com contexto 65536
+- tinyllama/deepseek-r1-8b -> keryx8b-win local com contexto 131072
 - deepseek-r1-32b -> keryx32b remoto 172.16.0.110:11434
 
 Observacao:
-O service pack v10 recria o keryx8b-win com PARAMETER num_ctx 65536 para aproveitar melhor a RTX 3060 12 GB.
+O service pack v12 recria o keryx8b-win com PARAMETER num_ctx 131072 para aproveitar melhor a RTX 3060 12 GB.
 "@ | Set-Content -Encoding UTF8 "$stage\README-WINDOWS-RELEASE.txt"
 
 $zip = Join-Path $OutDir "keryx-windows-$Version.zip"
