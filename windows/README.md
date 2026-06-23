@@ -104,14 +104,15 @@ Invoke-RestMethod `
 -s stratum+tcp://krx.baikalmine.com:9020 --mining-address keryx:qzppqqpg3f4yrp93g9fx0t65akrtzqpfaxrdjlyljjp59gdxh549u5s9pnesa.ESPOSA --high --external-inference-url http://127.0.0.1:11500/v1/chat/completions --external-inference-model tinyllama=keryx8b-win --external-inference-model deepseek-r1-8b=keryx8b-win --external-inference-model deepseek-r1-32b=keryx32b --external-inference-timeout-sec 900
 ```
 
-## Restaurar o menu/tray do repo
+## Menu/tray
 
-O arquivo `miner_service_pack_original_krx_ollama_wait_v9.zip.b64` guarda o pacote do menu/tray em base64. Para restaurar:
+O pacote do menu/tray validado nesta conversa e `miner_service_pack_original_krx_ollama_wait_v9.zip`. Ele deve ser extraido em:
 
-```powershell
-cd windows
-powershell -ExecutionPolicy Bypass -File .\restore-miner-service-pack.ps1
+```text
+C:\miners\miner_service_pack
 ```
+
+No repositorio, este diretorio documenta o runtime e fornece o script de empacotamento da release. O pacote ZIP do menu/tray deve ser anexado como asset na release Windows.
 
 ## Release Windows
 
